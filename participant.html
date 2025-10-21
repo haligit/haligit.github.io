@@ -6,9 +6,10 @@
   <title>Participant Verification</title>
   <style>
     input {
-      font-size: 16px;
-      padding: 6px;
-      width: 180px;
+      font-size: 18px;
+      padding: 10px;
+      width: 200px;
+      text-align: center;
     }
   </style>
 </head>
@@ -18,7 +19,14 @@
 
   <div id="dobCheck">
     <p>Please enter your Date of Birth (dd/mm/yyyy):</p>
-    <input type="text" id="dobInput" placeholder="dd/mm/yyyy" maxlength="10" />
+    <input 
+      id="dobInput" 
+      placeholder="dd/mm/yyyy" 
+      maxlength="10" 
+      inputmode="numeric" 
+      pattern="\d*" 
+      autocomplete="off" 
+    />
     <button onclick="checkDOB()">Submit</button>
     <p id="message" style="color: red;"></p>
   </div>
@@ -28,31 +36,45 @@
   </div>
 
   <script>
-    // Get URL parameters
+    // Get URL params
     const params = new URLSearchParams(window.location.search);
     const name = params.get("name");
     const correctDOB = params.get("dob");
 
-    // Display name
+    // Display participant name
     if (name) {
       document.getElementById("welcome").textContent = `Welcome, ${decodeURIComponent(name)}!`;
     }
 
-    // Auto-format DOB input
+    // Auto-format input as dd/mm/yyyy — but allow deleting and editing freely
     const dobInput = document.getElementById('dobInput');
+
     dobInput.addEventListener('input', function (e) {
-      let value = dobInput.value.replace(/\D/g, ''); // remove all non-digits
-      if (value.length >= 2) value = value.slice(0, 2) + '/' + value.slice(2);
-      if (value.length >= 5) value = value.slice(0, 5) + '/' + value.slice(5);
-      if (value.length > 10) value = value.slice(0, 10); // limit to dd/mm/yyyy
-      dobInput.value = value;
+      const cursorPos = dobInput.selectionStart;
+      let value = dobInput.value.replace(/\D/g, '');
+
+      if (value.length > 8) value = value.slice(0, 8);
+
+      let formatted = '';
+      if (value.length > 0) formatted += value.slice(0, 2);
+      if (value.length >= 3) formatted += '/' + value.slice(2, 4);
+      if (value.length >= 5) formatted += '/' + value.slice(4);
+
+      dobInput.value = formatted;
+
+      // Restore cursor position if needed
+      if (e.inputType === 'deleteContentBackward') {
+        dobInput.setSelectionRange(cursorPos, cursorPos);
+      }
     });
 
     // Check DOB match
     function checkDOB() {
       const input = dobInput.value.trim();
+      const message = document.getElementById("message");
+
       if (!input) {
-        document.getElementById("message").textContent = 'Please enter your date of birth.';
+        message.textContent = 'Please enter your date of birth.';
         return;
       }
 
@@ -60,7 +82,7 @@
         document.getElementById("dobCheck").style.display = 'none';
         document.getElementById("successMessage").style.display = 'block';
       } else {
-        document.getElementById("message").textContent = 'Incorrect DOB, please try again.';
+        message.textContent = 'Incorrect DOB, please try again.';
       }
     }
   </script>
