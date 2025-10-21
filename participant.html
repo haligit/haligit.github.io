@@ -4,6 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Participant Verification</title>
+  <style>
+    input {
+      font-size: 16px;
+      padding: 6px;
+      width: 180px;
+    }
+  </style>
 </head>
 <body>
 
@@ -11,7 +18,7 @@
 
   <div id="dobCheck">
     <p>Please enter your Date of Birth (dd/mm/yyyy):</p>
-    <input type="text" id="dobInput" placeholder="e.g. 21/10/1985" />
+    <input type="text" id="dobInput" placeholder="dd/mm/yyyy" maxlength="10" />
     <button onclick="checkDOB()">Submit</button>
     <p id="message" style="color: red;"></p>
   </div>
@@ -20,41 +27,43 @@
     <h2>You are through!</h2>
   </div>
 
-<script>
-  // Function to get URL parameters
-  function getUrlParam(param) {
+  <script>
+    // Get URL parameters
     const params = new URLSearchParams(window.location.search);
-    return params.get(param);
-  }
+    const name = params.get("name");
+    const correctDOB = params.get("dob");
 
-  // Read 'name' and 'dob' from URL
-  const name = getUrlParam('name');
-  const correctDOB = getUrlParam('dob'); // Expected format dd/mm/yyyy
-
-  // Show welcome message with decoded name
-  if (name) {
-    document.getElementById('welcome').textContent = `Welcome, ${decodeURIComponent(name)}!`;
-  }
-
-  function checkDOB() {
-    const input = document.getElementById('dobInput').value.trim();
-
-    if (!input) {
-      document.getElementById('message').textContent = 'Please enter your date of birth.';
-      return;
+    // Display name
+    if (name) {
+      document.getElementById("welcome").textContent = `Welcome, ${decodeURIComponent(name)}!`;
     }
 
-    // Compare input with the correct DOB (exact match)
-    if (input === correctDOB) {
-      // Hide DOB input and message
-      document.getElementById('dobCheck').style.display = 'none';
-      // Show success message
-      document.getElementById('successMessage').style.display = 'block';
-    } else {
-      document.getElementById('message').textContent = 'Incorrect DOB, please try again.';
+    // Auto-format DOB input
+    const dobInput = document.getElementById('dobInput');
+    dobInput.addEventListener('input', function (e) {
+      let value = dobInput.value.replace(/\D/g, ''); // remove all non-digits
+      if (value.length >= 2) value = value.slice(0, 2) + '/' + value.slice(2);
+      if (value.length >= 5) value = value.slice(0, 5) + '/' + value.slice(5);
+      if (value.length > 10) value = value.slice(0, 10); // limit to dd/mm/yyyy
+      dobInput.value = value;
+    });
+
+    // Check DOB match
+    function checkDOB() {
+      const input = dobInput.value.trim();
+      if (!input) {
+        document.getElementById("message").textContent = 'Please enter your date of birth.';
+        return;
+      }
+
+      if (input === correctDOB) {
+        document.getElementById("dobCheck").style.display = 'none';
+        document.getElementById("successMessage").style.display = 'block';
+      } else {
+        document.getElementById("message").textContent = 'Incorrect DOB, please try again.';
+      }
     }
-  }
-</script>
+  </script>
 
 </body>
 </html>
