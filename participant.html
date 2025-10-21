@@ -1,31 +1,60 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Participant Lookup</title>
-  <style>
-    body {
-      font-family: sans-serif;
-      text-align: center;
-      margin-top: 100px;
-    }
-    h1 {
-      color: #333;
-    }
-  </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Participant Verification</title>
 </head>
 <body>
-  <h1 id="greeting">Loading...</h1>
 
-  <script>
+  <h1 id="welcome">Welcome!</h1>
+
+  <div id="dobCheck">
+    <p>Please enter your Date of Birth (dd/mm/yyyy):</p>
+    <input type="text" id="dobInput" placeholder="e.g. 21/10/1985" />
+    <button onclick="checkDOB()">Submit</button>
+    <p id="message" style="color: red;"></p>
+  </div>
+
+  <div id="successMessage" style="display:none;">
+    <h2>You are through!</h2>
+  </div>
+
+<script>
+  // Function to get URL parameters
+  function getUrlParam(param) {
     const params = new URLSearchParams(window.location.search);
-    const name = params.get("name");
+    return params.get(param);
+  }
 
-    if (name) {
-      document.getElementById("greeting").textContent = `Welcome, ${decodeURIComponent(name)}!`;
-    } else {
-      document.getElementById("greeting").textContent = "Name not found in link.";
+  // Read 'name' and 'dob' from URL
+  const name = getUrlParam('name');
+  const correctDOB = getUrlParam('dob'); // Expected format dd/mm/yyyy
+
+  // Show welcome message with decoded name
+  if (name) {
+    document.getElementById('welcome').textContent = `Welcome, ${decodeURIComponent(name)}!`;
+  }
+
+  function checkDOB() {
+    const input = document.getElementById('dobInput').value.trim();
+
+    if (!input) {
+      document.getElementById('message').textContent = 'Please enter your date of birth.';
+      return;
     }
-  </script>
+
+    // Compare input with the correct DOB (exact match)
+    if (input === correctDOB) {
+      // Hide DOB input and message
+      document.getElementById('dobCheck').style.display = 'none';
+      // Show success message
+      document.getElementById('successMessage').style.display = 'block';
+    } else {
+      document.getElementById('message').textContent = 'Incorrect DOB, please try again.';
+    }
+  }
+</script>
+
 </body>
 </html>
