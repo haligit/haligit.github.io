@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Select Your Numbers</title>
+  <style>
+    .number-grid {
+      display: grid;
+      grid-template-columns: repeat(10, 1fr);
+      gap: 10px;
+      max-width: 600px;
+      margin: auto;
+    }
+    .number-cell {
+      padding: 20px;
+      text-align: center;
+      background: #f0f0f0;
+      cursor: pointer;
+      user-select: none;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      transition: background-color 0.3s;
+    }
+    .number-cell.selected {
+      background: #4caf50;
+      color: white;
+      border-color: #388e3c;
+    }
+    #summary {
+      margin-top: 20px;
+      text-align: center;
+      font-size: 18px;
+    }
+    #confirmBtn {
+      margin-top: 15px;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    #confirmBtn:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+  </style>
+
+  <!-- Set maxNumbers at the very top here -->
+  <script>
+    // === CONFIGURATION: Change this to set how many numbers to display ===
+    const maxNumbers = 50; // Change this as needed
+  </script>
+</head>
+<body>
+  <h1>Select Your Numbers</h1>
+  <div class="number-grid" id="numbers"></div>
+
+  <div id="summary">
+    <p>Selected numbers: <span id="selectedNumbers">None</span></p>
+    <button id="confirmBtn" disabled>Confirm Selection</button>
+  </div>
+
+  <script>
+    // Use the maxNumbers declared in the <head>
+
+    const params = new URLSearchParams(window.location.search);
+    const name = params.get("name") || "Unknown";
+    const dob = params.get("dob") || "";
+
+    const numbersDiv = document.getElementById('numbers');
+    const selectedNumbersSpan = document.getElementById('selectedNumbers');
+    const confirmBtn = document.getElementById('confirmBtn');
+
+    const selectedSet = new Set();
+
+    for (let i = 1; i <= maxNumbers; i++) {
+      const cell = document.createElement('div');
+      cell.classList.add('number-cell');
+      cell.textContent = i;
+      cell.addEventListener('click', () => {
+        if (selectedSet.has(i)) {
+          selectedSet.delete(i);
+          cell.classList.remove('selected');
+        } else {
+          selectedSet.add(i);
+          cell.classList.add('selected');
+        }
+        updateSummary();
+      });
+      numbersDiv.appendChild(cell);
+    }
+
+    function updateSummary() {
+      if (selectedSet.size === 0) {
+        selectedNumbersSpan.textContent = 'None';
+        confirmBtn.disabled = true;
+      } else {
+        const sorted = Array.from(selectedSet).sort((a,b) => a-b);
+        selectedNumbersSpan.textContent = sorted.join(', ');
+        confirmBtn.disabled = false;
+      }
+    }
+
+    confirmBtn.addEventListener('click', () => {
+      if (selectedSet.size === 0) return;
+      const selectedArray = Array.from(selectedSet);
+      alert(`Thank you, ${name}!\nYou selected: ${selectedArray.join(', ')}`);
+      // Future: add code here to save selections to a backend or sheet
+    });
+  </script>
+</body>
+</html>
