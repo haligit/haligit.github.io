@@ -2,90 +2,74 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Participant Verification</title>
   <style>
-    input {
-      font-size: 18px;
-      padding: 10px;
-      width: 200px;
-      text-align: center;
+    body {
+      font-family: Arial, sans-serif;
+      padding: 2em;
+      max-width: 500px;
+      margin: auto;
+    }
+    label, input {
+      display: block;
+      margin: 1em 0;
+    }
+    input[type="text"] {
+      padding: 0.5em;
+      width: 100%;
+      font-size: 16px;
+    }
+    button {
+      padding: 0.6em 1.2em;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    #result {
+      margin-top: 1em;
+      font-weight: bold;
     }
   </style>
 </head>
 <body>
+  <h2>Welcome</h2>
+  <p id="welcomeMessage"></p>
 
-  <h1 id="welcome">Welcome!</h1>
+  <label for="dobInput">Enter your Date of Birth (dd/mm/yyyy):</label>
+  <input type="text" id="dobInput" placeholder="dd/mm/yyyy" maxlength="10" />
+  <button onclick="verifyDOB()">Submit</button>
 
-  <div id="dobCheck">
-    <p>Please enter your Date of Birth (dd/mm/yyyy):</p>
-    <input 
-      id="dobInput" 
-      placeholder="dd/mm/yyyy" 
-      maxlength="10" 
-      inputmode="numeric" 
-      pattern="\d*" 
-      autocomplete="off" 
-    />
-    <button onclick="checkDOB()">Submit</button>
-    <p id="message" style="color: red;"></p>
-  </div>
-
-  <div id="successMessage" style="display:none;">
-    <h2>You are through!</h2>
-  </div>
+  <div id="result"></div>
 
   <script>
-    // Get URL params
     const params = new URLSearchParams(window.location.search);
-    const name = params.get("name");
-    const correctDOB = params.get("dob");
+    const name = params.get("name") || "Participant";
+    const dob = params.get("dob") || "";
 
-    // Display participant name
-    if (name) {
-      document.getElementById("welcome").textContent = `Welcome, ${decodeURIComponent(name)}!`;
-    }
+    document.getElementById("welcomeMessage").textContent = `Hello ${name}, please verify your date of birth.`;
 
-    // Auto-format input as dd/mm/yyyy — but allow deleting and editing freely
-    const dobInput = document.getElementById('dobInput');
-
-    dobInput.addEventListener('input', function (e) {
-      const cursorPos = dobInput.selectionStart;
-      let value = dobInput.value.replace(/\D/g, '');
-
-      if (value.length > 8) value = value.slice(0, 8);
-
-      let formatted = '';
-      if (value.length > 0) formatted += value.slice(0, 2);
-      if (value.length >= 3) formatted += '/' + value.slice(2, 4);
-      if (value.length >= 5) formatted += '/' + value.slice(4);
-
-      dobInput.value = formatted;
-
-      // Restore cursor position if needed
-      if (e.inputType === 'deleteContentBackward') {
-        dobInput.setSelectionRange(cursorPos, cursorPos);
-      }
+    // Auto-insert slashes as the user types DOB
+    const dobInput = document.getElementById("dobInput");
+    dobInput.addEventListener("input", (e) => {
+      let value = e.target.value.replace(/\D/g, ""); // remove non-digits
+      if (value.length > 2) value = value.slice(0, 2) + "/" + value.slice(2);
+      if (value.length > 5) value = value.slice(0, 5) + "/" + value.slice(5, 9);
+      e.target.value = value;
     });
 
-    // Check DOB match
-    function checkDOB() {
-      const input = dobInput.value.trim();
-      const message = document.getElementById("message");
+    function verifyDOB() {
+      const inputDob = dobInput.value.trim();
+      const resultDiv = document.getElementById("result");
 
-      if (!input) {
-        message.textContent = 'Please enter your date of birth.';
-        return;
-      }
-
-      if (input === correctDOB) {
-        document.getElementById("dobCheck").style.display = 'none';
-        document.getElementById("successMessage").style.display = 'block';
+      if (inputDob === dob) {
+        // ✅ DOB is correct – redirect to select.html
+        const redirectUrl = `select.html?name=${encodeURIComponent(name)}&dob=${encodeURIComponent(inputDob)}`;
+        window.location.href = redirectUrl;
       } else {
-        message.textContent = 'Incorrect DOB, please try again.';
+        // ❌ DOB is incorrect – show error
+        resultDiv.innerHTML = "<p style='color:red;'>Incorrect DOB. Try again.</p>";
       }
     }
   </script>
-
 </body>
 </html>
