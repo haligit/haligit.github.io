@@ -52,7 +52,11 @@
     const name = params.get("name") || "Participant";
     const dob = params.get("dob") || "";
 
-    document.getElementById("welcomeMessage").textContent = `Hello ${name}, please verify your date of birth.`;
+    const id = params.get("id") || "";
+
+    const greetingText = id ? `Hello ${id} - ${name}, please verify your date of birth.` : `Hello ${name}, please verify your date of birth.`;
+
+    document.getElementById("welcomeMessage").textContent = greetingText;
 
     // Auto-insert slashes as the user types DOB
     const dobInput = document.getElementById("dobInput");
