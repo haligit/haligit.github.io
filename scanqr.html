@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scan QR Code</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 2em;
+    }
+    button {
+      padding: 1em 2em;
+      font-size: 1.2em;
+      margin-top: 2em;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h2>Scan Your QR Code</h2>
+  <p>Please scan your participant QR code using the button below.</p>
+
+  <button onclick="scanQR()">📷 Scan QR</button>
+
+  <div id="result" style="margin-top: 2em; font-weight: bold;"></div>
+
+  <script>
+    function scanQR() {
+      // Simulated scan result
+      document.getElementById('result').textContent = "✅ QR scan simulated. You may now continue.";
+      
+      // Later, you could redirect or process the QR data here
+      // e.g. window.location.href = 'somepage.html?data=xyz';
+    }
+  </script>
+</body>
+</html>
