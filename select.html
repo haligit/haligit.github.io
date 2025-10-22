@@ -152,19 +152,13 @@
       confirmBtn.disabled = false;
     }
 
-    confirmBtn.addEventListener('click', () => {
+confirmBtn.addEventListener('click', () => {
   alert(`Thank you, ${name}!\nYour selections:\n` + priorityListDiv.textContent);
-
-  // Clear selections
-  selectedList.length = 0;
-  document.querySelectorAll('.number-cell.selected').forEach(cell => cell.classList.remove('selected'));
-  updatePriorityDisplay();
-
-  // Redirect to scanqr.html after short delay
-  setTimeout(() => {
-    window.location.href = "scanqr.html";
-  }, 500); // slight delay for user to see the alert
+  
+  // Redirect after user clicks OK in alert
+  window.location.href = "scanqr.html";
 });
+
 
 
     clearBtn.addEventListener('click', () => {
