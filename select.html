@@ -153,17 +153,19 @@
     }
 
     confirmBtn.addEventListener('click', () => {
-      alert(`Thank you, ${name}!\nYour selections:\n` + priorityListDiv.textContent);
+  alert(`Thank you, ${name}!\nYour selections:\n` + priorityListDiv.textContent);
 
-      // --- New code to clear selections after confirming ---
-      selectedList.length = 0; // Clear selection array
+  // Clear selections
+  selectedList.length = 0;
+  document.querySelectorAll('.number-cell.selected').forEach(cell => cell.classList.remove('selected'));
+  updatePriorityDisplay();
 
-      // Remove selected styles from all selected number cells
-      const selectedCells = document.querySelectorAll('.number-cell.selected');
-      selectedCells.forEach(cell => cell.classList.remove('selected'));
+  // Redirect to scanqr.html after short delay
+  setTimeout(() => {
+    window.location.href = "scanqr.html";
+  }, 500); // slight delay for user to see the alert
+});
 
-      updatePriorityDisplay();
-    });
 
     clearBtn.addEventListener('click', () => {
       // Clear selections
