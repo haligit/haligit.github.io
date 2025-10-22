@@ -154,7 +154,15 @@
 
     confirmBtn.addEventListener('click', () => {
       alert(`Thank you, ${name}!\nYour selections:\n` + priorityListDiv.textContent);
-      // TODO: Save data to backend or file
+
+      // --- New code to clear selections after confirming ---
+      selectedList.length = 0; // Clear selection array
+
+      // Remove selected styles from all selected number cells
+      const selectedCells = document.querySelectorAll('.number-cell.selected');
+      selectedCells.forEach(cell => cell.classList.remove('selected'));
+
+      updatePriorityDisplay();
     });
 
     clearBtn.addEventListener('click', () => {
@@ -170,4 +178,3 @@
   </script>
 </body>
 </html>
-
