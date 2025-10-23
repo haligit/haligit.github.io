@@ -83,7 +83,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
-    const maxNumbers = 50; // Change this if needed
+    const maxNumbers = 50; // adjust if needed
   </script>
 </head>
 <body>
@@ -113,7 +113,7 @@
     const confirmBtn = document.getElementById('confirmBtn');
     const clearBtn = document.getElementById('clearBtn');
 
-    const selectedList = []; // local selected numbers
+    const selectedList = []; // local selections
     let existingSelections = []; // from DB
 
     // --- CREATE NUMBER CELLS ---
@@ -166,7 +166,7 @@
       updatePriorityDisplay();
     }
 
-    // --- LOAD DATA ---
+    // --- LOAD EXISTING DATA ---
     async function loadParticipantData() {
       try {
         const { data, error } = await supabase
@@ -188,7 +188,7 @@
       }
     }
 
-    // --- SAVE DATA ---
+    // --- SAVE DATA & LOG ---
     async function saveSelectionIfChanged() {
       const newSelections = [...selectedList];
       const same = JSON.stringify(newSelections) === JSON.stringify(existingSelections);
@@ -203,7 +203,6 @@
           .select('id')
           .eq('participant_id', participantId)
           .maybeSingle();
-
         if (checkError) throw checkError;
 
         if (existing) {
@@ -220,6 +219,18 @@
           if (insertError) throw insertError;
           console.log("✅ Inserted new record.");
         }
+
+        // --- Log this confirmed action ---
+        const { error: logError } = await supabase
+          .from('activity_log')
+          .insert([{
+            participant_id: participantId,
+            name: name,
+            action: 'save',
+            selections: newSelections
+          }]);
+        if (logError) throw logError;
+        console.log("🪵 Logged activity for", participantId);
 
         existingSelections = [...newSelections];
         alert(`✅ Thank you, ${name}! Your selections are saved.`);
