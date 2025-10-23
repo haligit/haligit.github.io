@@ -141,11 +141,12 @@
 
     // --- UPDATE DISPLAY ---
     function updatePriorityDisplay() {
-      if (selectedList.length === 0) {
-        priorityListDiv.textContent = "None";
-        confirmBtn.disabled = true;
-        return;
-      }
+       if (selectedList.length === 0) {
+          priorityListDiv.textContent = "None";
+          confirmBtn.disabled = false; // ✅ allow confirming a cleared state
+          return;
+    }
+
       let output = "";
       selectedList.forEach((num, idx) => {
         output += `Priority ${idx + 1} = ${num}\n`;
@@ -233,7 +234,12 @@
         console.log("🪵 Logged activity for", participantId);
 
         existingSelections = [...newSelections];
-        alert(`✅ Thank you, ${name}! Your selections are saved.`);
+        if (newSelections.length === 0) {
+          alert(`✅ Thank you, ${name}! Your selections have been cleared.`);
+        } else {
+         alert(`✅ Thank you, ${name}! Your selections are saved.`);
+        }
+
         window.location.href = "scanqr.html";
       } catch (err) {
         console.error("❌ Save error:", err);
