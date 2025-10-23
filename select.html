@@ -81,6 +81,7 @@
     }
   </style>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     const maxNumbers = 50; // Change this if needed
   </script>
@@ -97,80 +98,148 @@
   </div>
 
   <script>
+    // 🌐 --- SUPABASE CONFIG ---
+    const SUPABASE_URL = "https://cfuwtozobaypksesmxsi.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNmdXd0b3pvYmF5cGtzZXNteHNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDc1NjksImV4cCI6MjA3NjcyMzU2OX0.SbpESIaS7JZJmWHQ6ApifGDPYZZf3ekdQ0T_mgHCPSc";
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // --- PAGE ELEMENTS ---
     const params = new URLSearchParams(window.location.search);
+    const participantId = params.get("id") || "Unknown";
     const name = params.get("name") || "Unknown";
-    const dob = params.get("dob") || "";
 
     const numbersDiv = document.getElementById('numbers');
     const priorityListDiv = document.getElementById('priorityList');
     const confirmBtn = document.getElementById('confirmBtn');
     const clearBtn = document.getElementById('clearBtn');
 
-    const selectedList = []; // Tracks selected numbers in order
+    const selectedList = []; // local selected numbers
+    let existingSelections = []; // from DB
 
-    // Create number buttons
+    // --- CREATE NUMBER CELLS ---
     for (let i = 1; i <= maxNumbers; i++) {
       const cell = document.createElement('div');
       cell.classList.add('number-cell');
       cell.textContent = i;
       cell.dataset.number = i;
-
       cell.addEventListener('click', () => toggleSelection(i, cell));
-
       numbersDiv.appendChild(cell);
     }
 
+    // --- TOGGLE SELECTION ---
     function toggleSelection(number, cell) {
       const index = selectedList.indexOf(number);
-
       if (index > -1) {
-        // Deselect
         selectedList.splice(index, 1);
         cell.classList.remove('selected');
       } else {
-        // Select
         selectedList.push(number);
         cell.classList.add('selected');
       }
-
       updatePriorityDisplay();
     }
 
+    // --- UPDATE DISPLAY ---
     function updatePriorityDisplay() {
       if (selectedList.length === 0) {
         priorityListDiv.textContent = "None";
         confirmBtn.disabled = true;
         return;
       }
-
       let output = "";
       selectedList.forEach((num, idx) => {
         output += `Priority ${idx + 1} = ${num}\n`;
       });
-
       priorityListDiv.textContent = output.trim();
       confirmBtn.disabled = false;
     }
 
-confirmBtn.addEventListener('click', () => {
-  alert(`Thank you, ${name}!\nYour selections:\n` + priorityListDiv.textContent);
-  
-  // Redirect after user clicks OK in alert
-  window.location.href = "scanqr.html";
-});
+    // --- HIGHLIGHT EXISTING SELECTIONS ---
+    function highlightSelections(list) {
+      document.querySelectorAll('.number-cell').forEach(cell => {
+        const num = parseInt(cell.dataset.number);
+        if (list.includes(num)) {
+          cell.classList.add('selected');
+          selectedList.push(num);
+        }
+      });
+      updatePriorityDisplay();
+    }
 
+    // --- LOAD DATA ---
+    async function loadParticipantData() {
+      try {
+        const { data, error } = await supabase
+          .from('participants')
+          .select('selections')
+          .eq('participant_id', participantId)
+          .maybeSingle();
 
+        if (error) throw error;
+        if (data) {
+          existingSelections = data.selections || [];
+          console.log("📦 Existing selections:", existingSelections);
+          highlightSelections(existingSelections);
+        } else {
+          console.log("ℹ️ No previous selections found.");
+        }
+      } catch (err) {
+        console.error("❌ Load error:", err);
+      }
+    }
 
+    // --- SAVE DATA ---
+    async function saveSelectionIfChanged() {
+      const newSelections = [...selectedList];
+      const same = JSON.stringify(newSelections) === JSON.stringify(existingSelections);
+      if (same) {
+        alert("✅ No changes — selections already saved!");
+        return;
+      }
+
+      try {
+        const { data: existing, error: checkError } = await supabase
+          .from('participants')
+          .select('id')
+          .eq('participant_id', participantId)
+          .maybeSingle();
+
+        if (checkError) throw checkError;
+
+        if (existing) {
+          const { error: updateError } = await supabase
+            .from('participants')
+            .update({ selections: newSelections })
+            .eq('participant_id', participantId);
+          if (updateError) throw updateError;
+          console.log("✅ Updated record.");
+        } else {
+          const { error: insertError } = await supabase
+            .from('participants')
+            .insert([{ participant_id: participantId, name: name, selections: newSelections }]);
+          if (insertError) throw insertError;
+          console.log("✅ Inserted new record.");
+        }
+
+        existingSelections = [...newSelections];
+        alert(`✅ Thank you, ${name}! Your selections are saved.`);
+        window.location.href = "scanqr.html";
+      } catch (err) {
+        console.error("❌ Save error:", err);
+        alert("⚠️ Failed to save data.");
+      }
+    }
+
+    // --- EVENT LISTENERS ---
+    confirmBtn.addEventListener('click', saveSelectionIfChanged);
     clearBtn.addEventListener('click', () => {
-      // Clear selections
       selectedList.length = 0;
-
-      // Remove selected style
-      const cells = document.querySelectorAll('.number-cell.selected');
-      cells.forEach(cell => cell.classList.remove('selected'));
-
+      document.querySelectorAll('.number-cell.selected').forEach(c => c.classList.remove('selected'));
       updatePriorityDisplay();
     });
+
+    // --- INITIALIZE ---
+    loadParticipantData();
   </script>
 </body>
 </html>
