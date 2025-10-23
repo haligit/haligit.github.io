@@ -73,7 +73,7 @@
 
       if (inputDob === dob) {
         // ✅ DOB is correct – redirect to select.html
-        const redirectUrl = `select.html?name=${encodeURIComponent(name)}&dob=${encodeURIComponent(inputDob)}`;
+        const redirectUrl = `select.html?name=${encodeURIComponent(name)}&id=${encodeURIComponent(id)}`;
         window.location.href = redirectUrl;
       } else {
         // ❌ DOB is incorrect – show error
