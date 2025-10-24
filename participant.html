@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Participant Verification</title>
   <script>
-   if (!window.location.href.includes('nocache')) {
+    // Prevent caching
+    if (!window.location.href.includes('nocache')) {
       const timestamp = new Date().getTime();
       window.location.href += (window.location.href.includes('?') ? '&' : '?') + 'nocache=' + timestamp;
     }
@@ -51,11 +52,11 @@
     const params = new URLSearchParams(window.location.search);
     const name = params.get("name") || "Participant";
     const dob = params.get("dob") || "";
+    let id = params.get("id") || "";
 
-    const id = params.get("id") || "";
-
-    const greetingText = id ? `Hello ${id} - ${name}, please verify your date of birth.` : `Hello ${name}, please verify your date of birth.`;
-
+    const greetingText = id
+      ? `Hello ${id} - ${name}, please verify your date of birth.`
+      : `Hello ${name}, please verify your date of birth. (You can continue without an ID)`;
     document.getElementById("welcomeMessage").textContent = greetingText;
 
     // Auto-insert slashes as the user types DOB
@@ -67,16 +68,26 @@
       e.target.value = value;
     });
 
+    // ✅ Store session securely
+    function startSession(name, id) {
+      const tokenData = {
+        name,
+        id,
+        timestamp: Date.now(),
+      };
+      sessionStorage.setItem("participant_session", JSON.stringify(tokenData));
+    }
+
+    // ✅ Verify DOB and redirect securely
     function verifyDOB() {
       const inputDob = dobInput.value.trim();
       const resultDiv = document.getElementById("result");
 
       if (inputDob === dob) {
-        // ✅ DOB is correct – redirect to select.html
+        startSession(name, id);
         const redirectUrl = `select.html?name=${encodeURIComponent(name)}&id=${encodeURIComponent(id)}`;
         window.location.href = redirectUrl;
       } else {
-        // ❌ DOB is incorrect – show error
         resultDiv.innerHTML = "<p style='color:red;'>Incorrect DOB. Try again.</p>";
       }
     }
