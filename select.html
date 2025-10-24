@@ -94,18 +94,22 @@
     let existingSelections = [];
 
     // ✅ Utility: Log activity
-    async function logAction(action, details = "") {
-      try {
-        await supabase.from("activity_log").insert([{
-          participant_id: participantId,
-          action,
-          details,
-          created_at: new Date().toISOString()
-        }]);
-      } catch (err) {
-        console.warn("⚠️ Log error:", err.message);
+    async function logAction(action, selection = "") {
+  try {
+    const { error } = await supabase.from("activity_log").insert([
+      {
+        participant_id: participantId,
+        name: name,
+        action: action,
+        selection: selection,
+        created_at: new Date().toISOString()
       }
-    }
+    ]);
+    if (error) console.warn("⚠️ Log insert error:", error.message);
+  } catch (err) {
+    console.warn("⚠️ Log error:", err.message);
+  }
+}
 
     // --- Create Number Grid
     for (let i = 1; i <= 50; i++) {
