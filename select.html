@@ -30,154 +30,202 @@
     <button id="clearBtn">Clear All</button>
   </div>
 
-  <script>
-    const SUPABASE_URL = "https://cfuwtozobaypksesmxsi.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNmdXd0b3pvYmF5cGtzZXNteHNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDc1NjksImV4cCI6MjA3NjcyMzU2OX0.SbpESIaS7JZJmWHQ6ApifGDPYZZf3ekdQ0T_mgHCPSc";
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+<script>
+  const SUPABASE_URL = "https://cfuwtozobaypksesmxsi.supabase.co";
+  const SUPABASE_ANON_KEY =
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNmdXd0b3pvYmF5cGtzZXNteHNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDc1NjksImV4cCI6MjA3NjcyMzU2OX0.SbpESIaS7JZJmWHQ6ApifGDPYZZf3ekdQ0T_mgHCPSc";
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    const params = new URLSearchParams(window.location.search);
-    const participantId = params.get("id") || "Unknown";
-    const name = params.get("name") || "Unknown";
+  const params = new URLSearchParams(window.location.search);
+  let participantId = params.get("id") || "";
+  const name = params.get("name") || "Unknown";
 
-    const numbersDiv = document.getElementById("numbers");
-    const priorityListDiv = document.getElementById("priorityList");
-    const confirmBtn = document.getElementById("confirmBtn");
-    const clearBtn = document.getElementById("clearBtn");
+  // ✅ Ask for participant ID if not provided
+  if (!participantId) {
+    participantId = prompt("Please enter your Participant ID (e.g., M1 or F5):");
+    if (!participantId || !/^[MF]\d+$/.test(participantId.trim().toUpperCase())) {
+      alert("Invalid Participant ID. Please try again.");
+      window.location.href = "participant.html";
+    } else {
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.set("id", participantId.trim().toUpperCase());
+      window.location.href = newUrl.href;
+    }
+  }
 
-    const selectedList = [];
-    let existingSelections = [];
+  // ✅ Security check — redirect if missing or tampered
+  if (
+    !participantId ||
+    participantId === "Unknown" ||
+    !name ||
+    name === "Unknown" ||
+    participantId.trim() === "" ||
+    name.trim() === ""
+  ) {
+    window.location.href = "participant.html";
+  }
 
-    // ✅ Log activity with correct data format
-    async function logAction(action, selections = []) {
-      try {
-        const logEntry = {
+  const numbersDiv = document.getElementById("numbers");
+  const priorityListDiv = document.getElementById("priorityList");
+  const confirmBtn = document.getElementById("confirmBtn");
+  const clearBtn = document.getElementById("clearBtn");
+
+  const selectedList = [];
+  let existingSelections = [];
+
+  // ✅ Log actions
+  async function logAction(action, selections = "") {
+    try {
+      const { error } = await supabase.from("activity_log").insert([
+        {
           participant_id: participantId,
           name: name,
           action: action,
-          selections: Array.isArray(selections) ? selections : [selections],
-          created_at: new Date().toISOString()
-        };
-        const { error } = await supabase.from("activity_log").insert([logEntry]);
-        if (error) console.warn("⚠️ Log insert error:", error.message);
-      } catch (err) {
-        console.warn("⚠️ Log error:", err.message);
-      }
+          selections: selections,
+          created_at: new Date().toISOString(),
+        },
+      ]);
+      if (error) console.warn("⚠️ Log insert error:", error.message);
+    } catch (err) {
+      console.warn("⚠️ Log error:", err.message);
     }
+  }
 
-    // --- Create Number Grid
-    for (let i = 1; i <= 50; i++) {
-      const cell = document.createElement("div");
-      cell.classList.add("number-cell");
-      cell.textContent = i;
-      cell.dataset.number = i;
-      cell.addEventListener("click", () => toggleSelection(i, cell));
-      numbersDiv.appendChild(cell);
+  // --- Create Number Grid
+  for (let i = 1; i <= 50; i++) {
+    const cell = document.createElement("div");
+    cell.classList.add("number-cell");
+    cell.textContent = i;
+    cell.dataset.number = i;
+    cell.addEventListener("click", () => toggleSelection(i, cell));
+    numbersDiv.appendChild(cell);
+  }
+
+  function toggleSelection(number, cell) {
+    const index = selectedList.indexOf(number);
+    if (index > -1) {
+      selectedList.splice(index, 1);
+      cell.classList.remove("selected");
+    } else {
+      selectedList.push(number);
+      cell.classList.add("selected");
     }
+    updatePriorityDisplay();
+  }
 
-    function toggleSelection(number, cell) {
-      const index = selectedList.indexOf(number);
-      if (index > -1) {
-        selectedList.splice(index, 1);
-        cell.classList.remove("selected");
-      } else {
-        selectedList.push(number);
-        cell.classList.add("selected");
-      }
-      updatePriorityDisplay();
-    }
-
-    function updatePriorityDisplay() {
-      if (selectedList.length === 0) {
-        priorityListDiv.textContent = "None";
-        confirmBtn.disabled = false;
-        return;
-      }
-      let output = "";
-      selectedList.forEach((num, idx) => output += `Priority ${idx + 1} = ${num}\n`);
-      priorityListDiv.textContent = output.trim();
+  function updatePriorityDisplay() {
+    if (selectedList.length === 0) {
+      priorityListDiv.textContent = "None";
       confirmBtn.disabled = false;
+      return;
     }
-
-    function highlightSelections(list) {
-      document.querySelectorAll(".number-cell").forEach(cell => {
-        const num = parseInt(cell.dataset.number);
-        if (list.includes(num)) {
-          cell.classList.add("selected");
-          selectedList.push(num);
-        }
-      });
-      updatePriorityDisplay();
-    }
-
-    async function loadParticipantData() {
-      await logAction("page_load", ["Select page opened"]);
-      try {
-        const { data, error } = await supabase
-          .from("participants")
-          .select("selections")
-          .eq("participant_id", participantId)
-          .maybeSingle();
-
-        if (error) throw error;
-
-        if (data && data.selections && data.selections.length > 0) {
-          existingSelections = data.selections;
-          highlightSelections(existingSelections);
-          await logAction("load_existing", existingSelections);
-        } else {
-          await logAction("load_empty", ["No previous selections"]);
-        }
-      } catch (err) {
-        console.error("❌ Load error:", err);
-      }
-    }
-
-    async function saveSelectionIfChanged() {
-      const newSelections = [...selectedList];
-      const same = JSON.stringify(newSelections) === JSON.stringify(existingSelections);
-
-      try {
-        const { data: existing } = await supabase
-          .from("participants")
-          .select("id")
-          .eq("participant_id", participantId)
-          .maybeSingle();
-
-        if (existing) {
-          await supabase
-            .from("participants")
-            .update({ selections: newSelections })
-            .eq("participant_id", participantId);
-        } else {
-          await supabase
-            .from("participants")
-            .insert([{ participant_id: participantId, name, selections: newSelections }]);
-        }
-
-        existingSelections = [...newSelections];
-        if (newSelections.length === 0) {
-          await logAction("save_clear", ["Cleared selections"]);
-        } else if (!same) {
-          await logAction("save_selection", newSelections);
-        }
-
-        alert(`✅ Thank you, ${name}! Your selections are saved.`);
-        await logAction("exit_page", ["User saved and exited"]);
-        window.location.href = "scanqr.html";
-      } catch (err) {
-        console.error("❌ Save error:", err);
-        alert("⚠️ Failed to save data.");
-      }
-    }
-
-    confirmBtn.addEventListener("click", saveSelectionIfChanged);
-    clearBtn.addEventListener("click", () => {
-      selectedList.length = 0;
-      document.querySelectorAll(".number-cell.selected").forEach(c => c.classList.remove("selected"));
-      updatePriorityDisplay();
+    let output = "";
+    selectedList.forEach((num, idx) => {
+      output += `Priority ${idx + 1} = ${num}\n`;
     });
+    priorityListDiv.textContent = output.trim();
+    confirmBtn.disabled = false;
+  }
 
-    loadParticipantData();
-  </script>
+  function highlightSelections(list) {
+    document.querySelectorAll(".number-cell").forEach((cell) => {
+      const num = parseInt(cell.dataset.number);
+      if (list.includes(num)) {
+        cell.classList.add("selected");
+        selectedList.push(num);
+      }
+    });
+    updatePriorityDisplay();
+  }
+
+  async function loadParticipantData() {
+    await logAction("page_load", "Select page opened");
+
+    try {
+      const { data, error } = await supabase
+        .from("participants")
+        .select("selections")
+        .eq("participant_id", participantId)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data && data.selections && data.selections.length > 0) {
+        existingSelections = data.selections;
+        highlightSelections(existingSelections);
+        await logAction("load_existing", JSON.stringify(existingSelections));
+      } else {
+        await logAction("load_empty", "No previous selections");
+      }
+    } catch (err) {
+      console.error("❌ Load error:", err);
+    }
+  }
+
+  async function saveSelectionIfChanged() {
+    const newSelections = [...selectedList];
+    const same = JSON.stringify(newSelections) === JSON.stringify(existingSelections);
+
+    try {
+      const { data: existing } = await supabase
+        .from("participants")
+        .select("id")
+        .eq("participant_id", participantId)
+        .maybeSingle();
+
+      if (existing) {
+        await supabase
+          .from("participants")
+          .update({ selections: newSelections })
+          .eq("participant_id", participantId);
+      } else {
+        await supabase
+          .from("participants")
+          .insert([{ participant_id: participantId, name, selections: newSelections }]);
+      }
+
+      existingSelections = [...newSelections];
+      if (newSelections.length === 0) {
+        await logAction("save_clear", "Cleared selections");
+      } else if (!same) {
+        await logAction("save_selection", JSON.stringify(newSelections));
+      }
+
+      alert(`✅ Thank you, ${name}! Your selections are saved.`);
+      await logAction("exit_page", "User saved and exited");
+      window.location.href = "scanqr.html";
+    } catch (err) {
+      console.error("❌ Save error:", err);
+      alert("⚠️ Failed to save data.");
+    }
+  }
+
+  confirmBtn.addEventListener("click", saveSelectionIfChanged);
+  clearBtn.addEventListener("click", () => {
+    selectedList.length = 0;
+    document
+      .querySelectorAll(".number-cell.selected")
+      .forEach((c) => c.classList.remove("selected"));
+    updatePriorityDisplay();
+  });
+
+  // ✅ Back navigation & tamper protection
+  window.addEventListener("pageshow", function (event) {
+    if (
+      event.persisted ||
+      performance.getEntriesByType("navigation")[0].type === "back_forward"
+    ) {
+      window.location.href = `participant.html`;
+    }
+  });
+
+  history.pushState(null, "", location.href);
+  window.onpopstate = function () {
+    history.go(1);
+    window.location.href = `participant.html`;
+  };
+
+  loadParticipantData();
+</script>
 </body>
 </html>
