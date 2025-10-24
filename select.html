@@ -94,7 +94,7 @@
     let existingSelections = [];
 
     // ✅ Utility: Log activity
-    async function logAction(action, selection = "") {
+    async function logAction(action, selections = "") {
   try {
     const { error } = await supabase.from("activity_log").insert([
       {
