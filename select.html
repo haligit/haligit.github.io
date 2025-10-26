@@ -179,17 +179,23 @@
 
     loadParticipantData();
   </script>
-  <script>
-    // Redirect to scanqr.html if the user tries to go back
+<script>
+  // Force redirect to scanqr.html if the user tries to go back
+  (function() {
+    // Replace page in browser history so "Back" won't reload select.html
+    window.history.pushState(null, "", window.location.href);
+    window.addEventListener("popstate", function () {
+      window.location.replace("scanqr.html");
+    });
+
+    // Also detect when the page is restored from cache (mobile Safari/Chrome)
     window.addEventListener("pageshow", function (event) {
-      if (event.persisted || performance.getEntriesByType("navigation")[0].type === "back_forward") {
+      if (event.persisted) {
         window.location.replace("scanqr.html");
       }
     });
+  })();
+</script>
 
-    window.onpopstate = function () {
-      window.location.replace("scanqr.html");
-    };
-  </script>  
 </body>
 </html>
