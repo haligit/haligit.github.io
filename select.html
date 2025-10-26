@@ -163,7 +163,7 @@
 
         alert(`✅ Thank you, ${name}! Your selections are saved.`);
         await logAction("exit_page", ["User saved and exited"]);
-        window.location.href = "scanqr.html";
+        window.location.replace("scanqr.html");
       } catch (err) {
         console.error("❌ Save error:", err);
         alert("⚠️ Failed to save data.");
