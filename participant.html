@@ -1,174 +1,148 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Participant Login</title>
-
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 2em;
-      max-width: 420px;
-      margin: auto;
-      text-align: center;
-    }
-    label {
-      display: block;
-      text-align: left;
-      margin-top: 12px;
-      margin-bottom: 6px;
-    }
-    .input-wrapper {
-      position: relative;
-      display: flex;
-      align-items: center;
-    }
-    input[type="text"],
-    input[type="password"] {
-      padding: 0.6em 2.6em 0.6em 0.6em;
-      font-size: 16px;
-      width: 100%;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      box-sizing: border-box;
-    }
-    .eye-btn {
-      position: absolute;
-      right: 8px;
-      background: none;
-      border: none;
-      cursor: pointer;
-      font-size: 18px;
-      color: #444;
-    }
-    .eye-btn:hover {
-      color: #000;
-    }
-    button.primary {
-      padding: 0.6em 1.2em;
-      font-size: 16px;
-      cursor: pointer;
-      background-color: #2f7d32;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      width: 100%;
-      margin-top: 1em;
-    }
-    #result {
-      margin-top: 1em;
-      font-weight: bold;
-      min-height: 1.2em;
-    }
-    .err { color: #c62828; }
-    .ok { color: #2e7d32; }
-    .small { font-size: 13px; color:#666; margin-top:8px; }
-  </style>
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Participant Login</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    padding: 2em;
+    max-width: 420px;
+    margin: auto;
+    text-align: center;
+  }
+  label {
+    display:block;
+    text-align:left;
+    margin-top:12px;
+    margin-bottom:6px;
+  }
+  .pw-container {
+    position: relative;
+    display: block;
+  }
+  input[type="text"], input[type="password"] {
+    width: 100%;
+    padding: 10px 40px 10px 10px;
+    font-size: 16px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    box-sizing: border-box;
+  }
+  .toggle-eye {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+  }
+  .toggle-eye svg {
+    width: 22px;
+    height: 22px;
+    fill: #666;
+  }
+  .toggle-eye:hover svg { fill: #000; }
+  button.primary {
+    margin-top: 1em;
+    width: 100%;
+    background:#2f7d32;
+    color:#fff;
+    border:none;
+    border-radius:6px;
+    font-size:16px;
+    padding:0.6em 1.2em;
+    cursor:pointer;
+  }
+  #result { margin-top:1em;font-weight:bold;min-height:1.2em;}
+  .err {color:#c62828;} .ok{color:#2e7d32;}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
   <h2>Participant Login</h2>
-  <p class="small">Enter your participant ID and password (password given by admin).</p>
+  <p style="font-size:13px;color:#666;">Enter your participant ID and password (password given by admin).</p>
 
   <label for="pidInput">Participant ID (e.g., M12 / F5)</label>
-  <input type="text" id="pidInput" placeholder="M12 or F5" autocomplete="off" />
+  <input id="pidInput" type="text" placeholder="M12 or F5" autocomplete="off">
 
   <label for="pwInput">Password</label>
-  <div class="input-wrapper">
-    <input type="password" id="pwInput" placeholder="Enter password" autocomplete="off" />
-    <button id="togglePw" class="eye-btn" aria-label="Show password">👁</button>
+  <div class="pw-container">
+    <input id="pwInput" type="password" placeholder="Enter password" autocomplete="off">
+    <button id="togglePw" class="toggle-eye" type="button" aria-label="Show password">
+      <!-- SVG eye icon -->
+      <svg id="eyeIcon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+        <path d="M12 5c-7.633 0-11 7-11 7s3.367 7 11 7 11-7 11-7-3.367-7-11-7zm0 12a5 5 0 110-10 5 5 0 010 10z"/>
+        <circle cx="12" cy="12" r="3"/>
+      </svg>
+    </button>
   </div>
 
   <button id="loginBtn" class="primary">Login</button>
-  <div id="result" role="status" aria-live="polite"></div>
+  <div id="result" role="status"></div>
 
-  <script>
-    const SUPABASE_URL = "https://cfuwtozobaypksesmxsi.supabase.co";
-    const SUPABASE_ANON_KEY =
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNmdXd0b3pvYmF5cGtzZXNteHNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDc1NjksImV4cCI6MjA3NjcyMzU2OX0.SbpESIaS7JZJmWHQ6ApifGDPYZZf3ekdQ0T_mgHCPSc";
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+<script>
+  const SUPABASE_URL = "https://cfuwtozobaypksesmxsi.supabase.co";
+  const SUPABASE_ANON_KEY =
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNmdXd0b3pvYmF5cGtzZXNteHNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDc1NjksImV4cCI6MjA3NjcyMzU2OX0.SbpESIaS7JZJmWHQ6ApifGDPYZZf3ekdQ0T_mgHCPSc";
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    const pidInput = document.getElementById('pidInput');
-    const pwInput = document.getElementById('pwInput');
-    const togglePwBtn = document.getElementById('togglePw');
-    const loginBtn = document.getElementById('loginBtn');
-    const resultDiv = document.getElementById('result');
+  const pidInput = document.getElementById("pidInput");
+  const pwInput = document.getElementById("pwInput");
+  const togglePw = document.getElementById("togglePw");
+  const eyeIcon = document.getElementById("eyeIcon");
+  const loginBtn = document.getElementById("loginBtn");
+  const resultDiv = document.getElementById("result");
 
-    // Auto uppercase participant ID
-    pidInput.addEventListener('input', (e) => {
-      e.target.value = e.target.value.toUpperCase();
-    });
+  // normalize ID
+  pidInput.addEventListener("input", e => e.target.value = e.target.value.toUpperCase());
 
-    // Toggle password visibility
-    togglePwBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      if (pwInput.type === 'password') {
-        pwInput.type = 'text';
-        togglePwBtn.textContent = '🙈';
-        togglePwBtn.setAttribute('aria-label', 'Hide password');
-      } else {
-        pwInput.type = 'password';
-        togglePwBtn.textContent = '👁';
-        togglePwBtn.setAttribute('aria-label', 'Show password');
-      }
-      pwInput.focus();
-    });
+  // toggle password
+  let visible = false;
+  togglePw.addEventListener("click", ()=>{
+    visible = !visible;
+    pwInput.type = visible ? "text" : "password";
+    eyeIcon.innerHTML = visible
+      ? '<path d="M1.39 4.22l18.39 18.39 1.41-1.41L2.81 2.81 1.39 4.22zM12 7c-1.1 0-2 .9-2 2 0 .23.04.45.1.66L9.06 8.62C9.97 7.63 10.94 7 12 7zm0 10c-1.06 0-2.03-.63-2.94-1.62l1.04-1.04c.21.06.43.1.66.1 1.1 0 2-.9 2-2 0-.23-.04-.45-.1-.66l1.08-1.08C15.37 11.97 16 12.94 16 14c0 1.66-1.34 3-3 3z"/>' 
+      : '<path d="M12 5c-7.633 0-11 7-11 7s3.367 7 11 7 11-7 11-7-3.367-7-11-7zm0 12a5 5 0 110-10 5 5 0 010 10z"/><circle cx="12" cy="12" r="3"/>';
+  });
 
-    function showMsg(msg, ok=false) {
-      resultDiv.innerHTML = ok ? `<span class="ok">${msg}</span>` : `<span class="err">${msg}</span>`;
-    }
+  function showMsg(msg, ok=false){
+    resultDiv.innerHTML = ok ? `<span class="ok">${msg}</span>` : `<span class="err">${msg}</span>`;
+  }
 
-    async function loginParticipant() {
-      const pid = pidInput.value.trim().toUpperCase();
-      const pw = pwInput.value.trim();
+  async function loginParticipant(){
+    const pid = pidInput.value.trim().toUpperCase();
+    const pw = pwInput.value.trim();
+    if(!pid || !pw){ showMsg("Please enter both ID and Password."); return; }
 
-      if (!pid || !pw) {
-        showMsg('Please enter both ID and Password.');
-        return;
-      }
+    try{
+      const { data, error } = await supabase
+        .from("participants_auth")
+        .select("participant_id,name,password_hash")
+        .eq("participant_id", pid)
+        .maybeSingle();
+      if(error) throw error;
+      if(!data){ showMsg("Invalid ID or Password."); return; }
 
-      try {
-        const { data, error } = await supabase
-          .from('participants_auth')
-          .select('participant_id, name, password_hash')
-          .eq('participant_id', pid)
-          .maybeSingle();
+      if((data.password_hash||"") === pw){
+        showMsg("✅ Login successful!", true);
+        setTimeout(()=>{
+          const url = `select.html?id=${encodeURIComponent(data.participant_id)}&name=${encodeURIComponent(data.name||"")}`;
+          window.location.href = url;
+        },600);
+      } else { showMsg("Invalid ID or Password."); }
+    } catch(err){ showMsg(err.message || "Error connecting to server."); console.error(err); }
+  }
 
-        if (error) throw error;
-        if (!data) {
-          showMsg('Invalid ID or Password.');
-          return;
-        }
-
-        // Compare plain text
-        if ((data.password_hash || '') === pw) {
-          showMsg('✅ Login successful!', true);
-          setTimeout(() => {
-            const redirectUrl = `select.html?id=${encodeURIComponent(data.participant_id)}&name=${encodeURIComponent(data.name || '')}`;
-            window.location.href = redirectUrl;
-          }, 600);
-        } else {
-          showMsg('Invalid ID or Password.');
-        }
-      } catch (err) {
-        console.error(err);
-        showMsg(err.message || 'Error connecting to server.');
-      }
-    }
-
-    loginBtn.addEventListener('click', loginParticipant);
-    [pidInput, pwInput].forEach(el => {
-      el.addEventListener('keydown', e => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          loginParticipant();
-        }
-      });
-    });
-
-    pidInput.focus();
-  </script>
+  loginBtn.addEventListener("click", loginParticipant);
+  [pidInput,pwInput].forEach(el=>el.addEventListener("keydown",e=>{
+    if(e.key==="Enter"){ e.preventDefault(); loginParticipant(); }
+  }));
+</script>
 </body>
 </html>
