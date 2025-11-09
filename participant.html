@@ -105,38 +105,42 @@
     resultDiv.innerHTML = ok ? `<span class="ok">${msg}</span>` : `<span class="err">${msg}</span>`;
   }
 
-  async function loginParticipant() {
-    const pid = pidInput.value.trim().toUpperCase();
-    const pw = pwInput.value.trim();
-    if (!pid || !pw) {
-      showMsg("Please enter both ID and Password.");
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase.rpc('verify_participant_login', {
-        p_participant_id: pid,
-        p_password: pw
-      });
-
-      if (error) throw error;
-
-      // ✅ Supabase RPC returns array
-      if (data && data.length > 0) {
-        const row = data[0];
-        showMsg("✅ Login successful!", true);
-        setTimeout(() => {
-          const url = `select.html?id=${encodeURIComponent(row.out_participant_id)}&name=${encodeURIComponent(row.out_name || "")}`;
-          window.location.href = url;
-        }, 600);
-      } else {
-        showMsg("Invalid ID or Password.");
-      }
-    } catch (err) {
-      showMsg(err.message || "Error connecting to server.");
-      console.error(err);
-    }
+async function loginParticipant() {
+  const pid = pidInput.value.trim().toUpperCase();
+  const pw = pwInput.value.trim();
+  if (!pid || !pw) {
+    showMsg("Please enter both ID and Password.");
+    return;
   }
+
+  try {
+    console.log("Checking login:", pid, pw); // Debug output
+    const { data, error } = await supabase.rpc('verify_participant_login', {
+      p_participant_id: pid,
+      p_password: pw
+    });
+
+    console.log("RPC result:", data, error); // Debug output
+
+    if (error) throw error;
+
+    // ✅ Supabase RPC can return either an array or null
+    if (Array.isArray(data) && data.length > 0) {
+      const row = data[0];
+      showMsg("✅ Login successful!", true);
+      setTimeout(() => {
+        const url = `select.html?id=${encodeURIComponent(row.out_participant_id)}&name=${encodeURIComponent(row.out_name || "")}`;
+        window.location.href = url;
+      }, 600);
+    } else {
+      showMsg("Invalid ID or Password.");
+    }
+  } catch (err) {
+    console.error("Login error:", err);
+    showMsg(err.message || "Error connecting to server.");
+  }
+}
+
 
   loginBtn.addEventListener("click", loginParticipant);
   [pidInput, pwInput].forEach(el => el.addEventListener("keydown", e => {
