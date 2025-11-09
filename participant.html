@@ -111,11 +111,11 @@
     if(!pid || !pw){ showMsg("Please enter both ID and Password."); return; }
 
     try{
-      const { data, error } = await supabase
-        .from("participants_auth")
-        .select("participant_id,name,password_hash")
-        .eq("participant_id", pid)
-        .maybeSingle();
+const { data, error } = await supabase.rpc('verify_participant_login', {
+  p_participant_id: pid,
+  p_password: pw
+});
+
       if(error) throw error;
       if(!data){ showMsg("Invalid ID or Password."); return; }
 
