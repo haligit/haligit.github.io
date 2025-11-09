@@ -9,26 +9,33 @@
     body {
       font-family: Arial, sans-serif;
       padding: 2em;
-      max-width: 400px;
+      max-width: 420px;
       margin: auto;
       text-align: center;
     }
-    label, input {
-      display: block;
-      width: 100%;
-      margin: 1em 0 0.5em;
-      font-size: 16px;
-      text-align: left;
-    }
+    label { display:block; text-align:left; margin-top: 12px; margin-bottom:6px; }
+    .field-row { position: relative; }
     input[type="text"], input[type="password"] {
-      padding: 0.6em;
+      padding: 0.6em 2.8em 0.6em 0.6em;
       font-size: 16px;
       width: 100%;
       border: 1px solid #ccc;
       border-radius: 6px;
       box-sizing: border-box;
     }
-    button {
+    .eye-btn {
+      position: absolute;
+      right: 6px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-size: 18px;
+      padding: 6px;
+      line-height: 1;
+    }
+    button.primary {
       padding: 0.6em 1.2em;
       font-size: 16px;
       cursor: pointer;
@@ -39,29 +46,29 @@
       width: 100%;
       margin-top: 1em;
     }
-    #result {
-      margin-top: 1em;
-      font-weight: bold;
-    }
+    #result { margin-top: 1em; font-weight: bold; min-height:1.2em; }
     .err { color: #c62828; }
     .ok { color: #2e7d32; }
+    .small { font-size: 13px; color:#666; margin-top:8px; }
   </style>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 </head>
 <body>
   <h2>Participant Login</h2>
-  <p>Please enter your Participant ID and Password to continue.</p>
+  <p class="small">Enter your participant ID and password (password given by admin).</p>
 
   <label for="pidInput">Participant ID (e.g., M12 / F5)</label>
-  <input type="text" id="pidInput" placeholder="M12 or F5" autocomplete="off"/>
+  <input type="text" id="pidInput" placeholder="M12 or F5" autocomplete="off" />
 
   <label for="pwInput">Password</label>
-  <input type="password" id="pwInput" placeholder="Enter password" autocomplete="off"/>
+  <div class="field-row" style="margin-bottom:4px;">
+    <input type="password" id="pwInput" placeholder="Enter password" autocomplete="off" />
+    <button id="togglePw" class="eye-btn" aria-label="Show password">👁</button>
+  </div>
 
-  <button id="loginBtn">Login</button>
-  <div id="result"></div>
+  <button id="loginBtn" class="primary">Login</button>
+  <div id="result" role="status" aria-live="polite"></div>
 
   <script>
     const SUPABASE_URL = "https://cfuwtozobaypksesmxsi.supabase.co";
@@ -71,26 +78,39 @@
 
     const pidInput = document.getElementById('pidInput');
     const pwInput = document.getElementById('pwInput');
-    const resultDiv = document.getElementById('result');
     const loginBtn = document.getElementById('loginBtn');
+    const resultDiv = document.getElementById('result');
+    const togglePwBtn = document.getElementById('togglePw');
 
-    // Automatically convert ID to uppercase (M/F normalization)
+    // Uppercase normalization for M/F prefix
     pidInput.addEventListener('input', (e) => {
       e.target.value = e.target.value.toUpperCase();
     });
 
+    // Toggle password visibility
+    togglePwBtn.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      const type = pwInput.type === 'password' ? 'text' : 'password';
+      pwInput.type = type;
+      togglePwBtn.textContent = type === 'password' ? '👁' : '🙈';
+      pwInput.focus();
+    });
+
+    function showMsg(text, ok=false) {
+      resultDiv.innerHTML = ok ? `<span class="ok">${text}</span>` : `<span class="err">${text}</span>`;
+    }
+
     async function loginParticipant() {
       const pid = pidInput.value.trim().toUpperCase();
       const pw = pwInput.value.trim();
-
       resultDiv.textContent = '';
+
       if (!pid || !pw) {
-        resultDiv.innerHTML = "<span class='err'>Please enter both ID and Password.</span>";
+        showMsg('Please enter both ID and Password.');
         return;
       }
 
       try {
-        // Fetch participant record
         const { data, error } = await supabase
           .from('participants_auth')
           .select('participant_id, name, password_hash')
@@ -99,36 +119,31 @@
 
         if (error) throw error;
         if (!data) {
-          resultDiv.innerHTML = "<span class='err'>Invalid ID or Password.</span>";
+          showMsg('Invalid ID or Password.');
           return;
         }
 
-        // Compute MD5 of entered password
-        const pwHash = CryptoJS.MD5(pw).toString();
-
-        // Compare with stored password_hash
-        if (pwHash === data.password_hash) {
-          resultDiv.innerHTML = "<span class='ok'>✅ Login successful!</span>";
+        // compare plain text passwords
+        const storedPw = data.password_hash || '';
+        if (storedPw === pw) {
+          showMsg('✅ Login successful!', true);
           setTimeout(() => {
             const redirectUrl = `select.html?id=${encodeURIComponent(data.participant_id)}&name=${encodeURIComponent(data.name || '')}`;
             window.location.href = redirectUrl;
           }, 600);
         } else {
-          resultDiv.innerHTML = "<span class='err'>Invalid ID or Password.</span>";
+          showMsg('Invalid ID or Password.');
         }
-
       } catch (err) {
         console.error(err);
-        resultDiv.innerHTML = `<span class='err'>${err.message || 'Error connecting to server.'}</span>`;
+        showMsg(err.message || 'Error connecting to server.');
       }
     }
 
     loginBtn.addEventListener('click', loginParticipant);
-
-    // Press Enter to submit
-    pwInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') loginParticipant();
-    });
+    [pidInput, pwInput].forEach(el => el.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); loginParticipant(); }
+    }));
   </script>
 </body>
 </html>
