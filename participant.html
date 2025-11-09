@@ -3,83 +3,132 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Participant Verification</title>
-  <script>
-   if (!window.location.href.includes('nocache')) {
-      const timestamp = new Date().getTime();
-      window.location.href += (window.location.href.includes('?') ? '&' : '?') + 'nocache=' + timestamp;
-    }
-  </script>
+  <title>Participant Login</title>
+
   <style>
     body {
       font-family: Arial, sans-serif;
       padding: 2em;
-      max-width: 500px;
+      max-width: 400px;
       margin: auto;
+      text-align: center;
     }
     label, input {
       display: block;
-      margin: 1em 0;
-    }
-    input[type="text"] {
-      padding: 0.5em;
       width: 100%;
+      margin: 1em 0 0.5em;
       font-size: 16px;
+      text-align: left;
+    }
+    input[type="text"], input[type="password"] {
+      padding: 0.6em;
+      font-size: 16px;
+      width: 100%;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      box-sizing: border-box;
     }
     button {
       padding: 0.6em 1.2em;
       font-size: 16px;
       cursor: pointer;
+      background-color: #2f7d32;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      width: 100%;
+      margin-top: 1em;
     }
     #result {
       margin-top: 1em;
       font-weight: bold;
     }
+    .err { color: #c62828; }
+    .ok { color: #2e7d32; }
   </style>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 </head>
 <body>
-  <h2>Welcome</h2>
-  <p id="welcomeMessage"></p>
+  <h2>Participant Login</h2>
+  <p>Please enter your Participant ID and Password to continue.</p>
 
-  <label for="dobInput">Enter your Date of Birth (dd/mm/yyyy):</label>
-  <input type="text" id="dobInput" placeholder="dd/mm/yyyy" maxlength="10" />
-  <button onclick="verifyDOB()">Submit</button>
+  <label for="pidInput">Participant ID (e.g., M12 / F5)</label>
+  <input type="text" id="pidInput" placeholder="M12 or F5" autocomplete="off"/>
 
+  <label for="pwInput">Password</label>
+  <input type="password" id="pwInput" placeholder="Enter password" autocomplete="off"/>
+
+  <button id="loginBtn">Login</button>
   <div id="result"></div>
 
   <script>
-    const params = new URLSearchParams(window.location.search);
-    const name = params.get("name") || "Participant";
-    const dob = params.get("dob") || "";
+    const SUPABASE_URL = "https://cfuwtozobaypksesmxsi.supabase.co";
+    const SUPABASE_ANON_KEY =
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNmdXd0b3pvYmF5cGtzZXNteHNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDc1NjksImV4cCI6MjA3NjcyMzU2OX0.SbpESIaS7JZJmWHQ6ApifGDPYZZf3ekdQ0T_mgHCPSc";
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    const id = params.get("id") || "";
+    const pidInput = document.getElementById('pidInput');
+    const pwInput = document.getElementById('pwInput');
+    const resultDiv = document.getElementById('result');
+    const loginBtn = document.getElementById('loginBtn');
 
-    const greetingText = id ? `Hello ${id} - ${name}, please verify your date of birth.` : `Hello ${name}, please verify your date of birth.`;
-
-    document.getElementById("welcomeMessage").textContent = greetingText;
-
-    // Auto-insert slashes as the user types DOB
-    const dobInput = document.getElementById("dobInput");
-    dobInput.addEventListener("input", (e) => {
-      let value = e.target.value.replace(/\D/g, ""); // remove non-digits
-      if (value.length > 2) value = value.slice(0, 2) + "/" + value.slice(2);
-      if (value.length > 5) value = value.slice(0, 5) + "/" + value.slice(5, 9);
-      e.target.value = value;
+    // Automatically convert ID to uppercase (M/F normalization)
+    pidInput.addEventListener('input', (e) => {
+      e.target.value = e.target.value.toUpperCase();
     });
 
-    function verifyDOB() {
-      const inputDob = dobInput.value.trim();
-      const resultDiv = document.getElementById("result");
+    async function loginParticipant() {
+      const pid = pidInput.value.trim().toUpperCase();
+      const pw = pwInput.value.trim();
 
-      if (inputDob === dob) {
-        // ✅ DOB is correct – redirect to select.html
-        const redirectUrl = `select.html?name=${encodeURIComponent(name)}&id=${encodeURIComponent(id)}`;
-        window.location.href = redirectUrl;
-      } else {
-        // ❌ DOB is incorrect – show error
-        resultDiv.innerHTML = "<p style='color:red;'>Incorrect DOB. Try again.</p>";
+      resultDiv.textContent = '';
+      if (!pid || !pw) {
+        resultDiv.innerHTML = "<span class='err'>Please enter both ID and Password.</span>";
+        return;
+      }
+
+      try {
+        // Fetch participant record
+        const { data, error } = await supabase
+          .from('participants_auth')
+          .select('participant_id, name, password_hash')
+          .eq('participant_id', pid)
+          .maybeSingle();
+
+        if (error) throw error;
+        if (!data) {
+          resultDiv.innerHTML = "<span class='err'>Invalid ID or Password.</span>";
+          return;
+        }
+
+        // Compute MD5 of entered password
+        const pwHash = CryptoJS.MD5(pw).toString();
+
+        // Compare with stored password_hash
+        if (pwHash === data.password_hash) {
+          resultDiv.innerHTML = "<span class='ok'>✅ Login successful!</span>";
+          setTimeout(() => {
+            const redirectUrl = `select.html?id=${encodeURIComponent(data.participant_id)}&name=${encodeURIComponent(data.name || '')}`;
+            window.location.href = redirectUrl;
+          }, 600);
+        } else {
+          resultDiv.innerHTML = "<span class='err'>Invalid ID or Password.</span>";
+        }
+
+      } catch (err) {
+        console.error(err);
+        resultDiv.innerHTML = `<span class='err'>${err.message || 'Error connecting to server.'}</span>`;
       }
     }
+
+    loginBtn.addEventListener('click', loginParticipant);
+
+    // Press Enter to submit
+    pwInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') loginParticipant();
+    });
   </script>
 </body>
 </html>
