@@ -90,10 +90,10 @@
   const loginBtn = document.getElementById("loginBtn");
   const resultDiv = document.getElementById("result");
 
-  // normalize ID to uppercase
+  // Normalize ID to uppercase
   pidInput.addEventListener("input", e => e.target.value = e.target.value.toUpperCase());
 
-  // 👁 toggle visibility using emoji
+  // 👁 Toggle visibility using emoji
   let visible = false;
   togglePw.addEventListener("click", ()=>{
     visible = !visible;
@@ -105,36 +105,45 @@
     resultDiv.innerHTML = ok ? `<span class="ok">${msg}</span>` : `<span class="err">${msg}</span>`;
   }
 
-  async function loginParticipant(){
+  async function loginParticipant() {
     const pid = pidInput.value.trim().toUpperCase();
     const pw = pwInput.value.trim();
-    if(!pid || !pw){ showMsg("Please enter both ID and Password."); return; }
+    if (!pid || !pw) {
+      showMsg("Please enter both ID and Password.");
+      return;
+    }
 
-    try{
-const { data, error } = await supabase.rpc('verify_participant_login', {
-  p_participant_id: pid,
-  p_password: pw
-});
+    try {
+      const { data, error } = await supabase.rpc('verify_participant_login', {
+        p_participant_id: pid,
+        p_password: pw
+      });
 
-      if(error) throw error;
-      if(!data){ showMsg("Invalid ID or Password."); return; }
+      if (error) throw error;
 
-      // ✅ plain-text password match
-      if((data.password_hash||"") === pw){
+      // ✅ Supabase RPC returns array
+      if (data && data.length > 0) {
+        const row = data[0];
         showMsg("✅ Login successful!", true);
-        setTimeout(()=>{
-          const url = `select.html?id=${encodeURIComponent(data.participant_id)}&name=${encodeURIComponent(data.name||"")}`;
+        setTimeout(() => {
+          const url = `select.html?id=${encodeURIComponent(row.out_participant_id)}&name=${encodeURIComponent(row.out_name || "")}`;
           window.location.href = url;
-        },600);
+        }, 600);
       } else {
         showMsg("Invalid ID or Password.");
       }
-    } catch(err){ showMsg(err.message || "Error connecting to server."); console.error(err); }
+    } catch (err) {
+      showMsg(err.message || "Error connecting to server.");
+      console.error(err);
+    }
   }
 
   loginBtn.addEventListener("click", loginParticipant);
-  [pidInput,pwInput].forEach(el=>el.addEventListener("keydown",e=>{
-    if(e.key==="Enter"){ e.preventDefault(); loginParticipant(); }
+  [pidInput, pwInput].forEach(el => el.addEventListener("keydown", e => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      loginParticipant();
+    }
   }));
 </script>
 </body>
