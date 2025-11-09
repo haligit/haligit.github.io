@@ -13,10 +13,20 @@
       margin: auto;
       text-align: center;
     }
-    label { display:block; text-align:left; margin-top: 12px; margin-bottom:6px; }
-    .field-row { position: relative; }
-    input[type="text"], input[type="password"] {
-      padding: 0.6em 2.8em 0.6em 0.6em;
+    label {
+      display: block;
+      text-align: left;
+      margin-top: 12px;
+      margin-bottom: 6px;
+    }
+    .input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    input[type="text"],
+    input[type="password"] {
+      padding: 0.6em 2.6em 0.6em 0.6em;
       font-size: 16px;
       width: 100%;
       border: 1px solid #ccc;
@@ -25,15 +35,15 @@
     }
     .eye-btn {
       position: absolute;
-      right: 6px;
-      top: 50%;
-      transform: translateY(-50%);
-      background: transparent;
+      right: 8px;
+      background: none;
       border: none;
       cursor: pointer;
       font-size: 18px;
-      padding: 6px;
-      line-height: 1;
+      color: #444;
+    }
+    .eye-btn:hover {
+      color: #000;
     }
     button.primary {
       padding: 0.6em 1.2em;
@@ -46,7 +56,11 @@
       width: 100%;
       margin-top: 1em;
     }
-    #result { margin-top: 1em; font-weight: bold; min-height:1.2em; }
+    #result {
+      margin-top: 1em;
+      font-weight: bold;
+      min-height: 1.2em;
+    }
     .err { color: #c62828; }
     .ok { color: #2e7d32; }
     .small { font-size: 13px; color:#666; margin-top:8px; }
@@ -62,7 +76,7 @@
   <input type="text" id="pidInput" placeholder="M12 or F5" autocomplete="off" />
 
   <label for="pwInput">Password</label>
-  <div class="field-row" style="margin-bottom:4px;">
+  <div class="input-wrapper">
     <input type="password" id="pwInput" placeholder="Enter password" autocomplete="off" />
     <button id="togglePw" class="eye-btn" aria-label="Show password">👁</button>
   </div>
@@ -78,32 +92,37 @@
 
     const pidInput = document.getElementById('pidInput');
     const pwInput = document.getElementById('pwInput');
+    const togglePwBtn = document.getElementById('togglePw');
     const loginBtn = document.getElementById('loginBtn');
     const resultDiv = document.getElementById('result');
-    const togglePwBtn = document.getElementById('togglePw');
 
-    // Uppercase normalization for M/F prefix
+    // Auto uppercase participant ID
     pidInput.addEventListener('input', (e) => {
       e.target.value = e.target.value.toUpperCase();
     });
 
     // Toggle password visibility
-    togglePwBtn.addEventListener('click', (ev) => {
-      ev.preventDefault();
-      const type = pwInput.type === 'password' ? 'text' : 'password';
-      pwInput.type = type;
-      togglePwBtn.textContent = type === 'password' ? '👁' : '🙈';
+    togglePwBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (pwInput.type === 'password') {
+        pwInput.type = 'text';
+        togglePwBtn.textContent = '🙈';
+        togglePwBtn.setAttribute('aria-label', 'Hide password');
+      } else {
+        pwInput.type = 'password';
+        togglePwBtn.textContent = '👁';
+        togglePwBtn.setAttribute('aria-label', 'Show password');
+      }
       pwInput.focus();
     });
 
-    function showMsg(text, ok=false) {
-      resultDiv.innerHTML = ok ? `<span class="ok">${text}</span>` : `<span class="err">${text}</span>`;
+    function showMsg(msg, ok=false) {
+      resultDiv.innerHTML = ok ? `<span class="ok">${msg}</span>` : `<span class="err">${msg}</span>`;
     }
 
     async function loginParticipant() {
       const pid = pidInput.value.trim().toUpperCase();
       const pw = pwInput.value.trim();
-      resultDiv.textContent = '';
 
       if (!pid || !pw) {
         showMsg('Please enter both ID and Password.');
@@ -123,9 +142,8 @@
           return;
         }
 
-        // compare plain text passwords
-        const storedPw = data.password_hash || '';
-        if (storedPw === pw) {
+        // Compare plain text
+        if ((data.password_hash || '') === pw) {
           showMsg('✅ Login successful!', true);
           setTimeout(() => {
             const redirectUrl = `select.html?id=${encodeURIComponent(data.participant_id)}&name=${encodeURIComponent(data.name || '')}`;
@@ -141,9 +159,16 @@
     }
 
     loginBtn.addEventListener('click', loginParticipant);
-    [pidInput, pwInput].forEach(el => el.addEventListener('keydown', e => {
-      if (e.key === 'Enter') { e.preventDefault(); loginParticipant(); }
-    }));
+    [pidInput, pwInput].forEach(el => {
+      el.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          loginParticipant();
+        }
+      });
+    });
+
+    pidInput.focus();
   </script>
 </body>
 </html>
