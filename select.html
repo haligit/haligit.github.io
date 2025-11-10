@@ -13,20 +13,12 @@
     .number-cell.selected { background-color: #4caf50; color: white; border-color: #388e3c; }
     #summary { margin-top: 1.5em; text-align: center; font-size: 1em; }
     #confirmBtn, #clearBtn { margin-top: 1em; padding: 0.8em 1.6em; font-size: 1em; cursor: pointer; margin-right: 1em; }
-    @media (max-width: 600px) { .number-grid { gap: 8px; } .number-cell { font-size: 1em; } #confirmBtn, #clearBtn { width: 100%; margin-bottom: 10px; } }
     #priorityList { text-align: left; margin-top: 1em; font-family: monospace; white-space: pre-line; }
-    
-    <!-- Universal cache prevention -->
-    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
-    <meta name="referrer" content="no-referrer">
   </style>
-
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-  <h2>Select Your Numbers</h2>
+  <h2 id="welcome"></h2>
   <div class="number-grid" id="numbers"></div>
 
   <div id="summary">
@@ -41,9 +33,30 @@
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNmdXd0b3pvYmF5cGtzZXNteHNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDc1NjksImV4cCI6MjA3NjcyMzU2OX0.SbpESIaS7JZJmWHQ6ApifGDPYZZf3ekdQ0T_mgHCPSc";
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    const params = new URLSearchParams(window.location.search);
-    const participantId = params.get("id") || "Unknown";
-    const name = params.get("name") || "Unknown";
+    const pid = sessionStorage.getItem("pid");
+    const pw  = sessionStorage.getItem("pw");
+    const pname = sessionStorage.getItem("pname") || "Participant";
+
+    if (!pid || !pw) {
+      alert("Please log in first.");
+      window.location.replace("participant.html");
+    }
+
+    document.getElementById("welcome").textContent = `Welcome ${pid} - ${pname}`;
+
+    // ✅ Verify credentials again before allowing access
+    async function verifySession() {
+      const { data, error } = await supabase.rpc("verify_participant_login", {
+        p_participant_id: pid,
+        p_password: pw
+      });
+      if (error || !data || !data.length) {
+        alert("Session expired or invalid. Please log in again.");
+        sessionStorage.clear();
+        window.location.replace("participant.html");
+      }
+    }
+    verifySession(); // Run immediately
 
     const numbersDiv = document.getElementById("numbers");
     const priorityListDiv = document.getElementById("priorityList");
@@ -52,23 +65,6 @@
 
     const selectedList = [];
     let existingSelections = [];
-
-    // ✅ Log activity with correct data format
-    async function logAction(action, selections = []) {
-      try {
-        const logEntry = {
-          participant_id: participantId,
-          name: name,
-          action: action,
-          selections: Array.isArray(selections) ? selections : [selections],
-          created_at: new Date().toISOString()
-        };
-        const { error } = await supabase.from("activity_log").insert([logEntry]);
-        if (error) console.warn("⚠️ Log insert error:", error.message);
-      } catch (err) {
-        console.warn("⚠️ Log error:", err.message);
-      }
-    }
 
     // --- Create Number Grid
     for (let i = 1; i <= 50; i++) {
@@ -104,74 +100,53 @@
       confirmBtn.disabled = false;
     }
 
-    function highlightSelections(list) {
-      document.querySelectorAll(".number-cell").forEach(cell => {
-        const num = parseInt(cell.dataset.number);
-        if (list.includes(num)) {
-          cell.classList.add("selected");
-          selectedList.push(num);
-        }
-      });
-      updatePriorityDisplay();
-    }
-
     async function loadParticipantData() {
-      await logAction("page_load", ["Select page opened"]);
       try {
         const { data, error } = await supabase
           .from("participants")
           .select("selections")
-          .eq("participant_id", participantId)
+          .eq("participant_id", pid)
           .maybeSingle();
-
         if (error) throw error;
-
-        if (data && data.selections && data.selections.length > 0) {
+        if (data && data.selections) {
           existingSelections = data.selections;
-          highlightSelections(existingSelections);
-          await logAction("load_existing", existingSelections);
-        } else {
-          await logAction("load_empty", ["No previous selections"]);
+          existingSelections.forEach(n => {
+            const cell = [...document.querySelectorAll(".number-cell")]
+              .find(c => parseInt(c.dataset.number) === n);
+            if (cell) cell.classList.add("selected");
+          });
+          updatePriorityDisplay();
         }
       } catch (err) {
-        console.error("❌ Load error:", err);
+        console.error("Load error:", err);
       }
     }
 
     async function saveSelectionIfChanged() {
       const newSelections = [...selectedList];
-      const same = JSON.stringify(newSelections) === JSON.stringify(existingSelections);
-
       try {
         const { data: existing } = await supabase
           .from("participants")
           .select("id")
-          .eq("participant_id", participantId)
+          .eq("participant_id", pid)
           .maybeSingle();
 
         if (existing) {
           await supabase
             .from("participants")
             .update({ selections: newSelections })
-            .eq("participant_id", participantId);
+            .eq("participant_id", pid);
         } else {
           await supabase
             .from("participants")
-            .insert([{ participant_id: participantId, name, selections: newSelections }]);
+            .insert([{ participant_id: pid, name: pname, selections: newSelections }]);
         }
 
-        existingSelections = [...newSelections];
-        if (newSelections.length === 0) {
-          await logAction("save_clear", ["Cleared selections"]);
-        } else if (!same) {
-          await logAction("save_selection", newSelections);
-        }
-
-        alert(`✅ Thank you, ${name}! Your selections are saved.`);
-        await logAction("exit_page", ["User saved and exited"]);
+        alert(`✅ Thank you, ${pname}! Your selections are saved.`);
+        sessionStorage.clear();
         window.location.replace("scanqr.html");
       } catch (err) {
-        console.error("❌ Save error:", err);
+        console.error("Save error:", err);
         alert("⚠️ Failed to save data.");
       }
     }
@@ -185,28 +160,5 @@
 
     loadParticipantData();
   </script>
-<script>
-  (function() {
-    // Always remove current page from browser history
-    window.history.replaceState(null, "", window.location.href);
-
-    // Disable bfcache & cached restores in all browsers
-    window.addEventListener("unload", function() {});
-
-    // Redirect if Back or Forward navigation happens
-    window.addEventListener("popstate", function () {
-      window.location.replace("scanqr.html");
-    });
-
-    // Handle cache restores (Safari, Chrome, Firefox)
-    window.addEventListener("pageshow", function (event) {
-      const navEntries = performance.getEntriesByType("navigation");
-      const navType = navEntries.length ? navEntries[0].type : "";
-      if (event.persisted || navType === "back_forward") {
-        window.location.replace("scanqr.html");
-      }
-    });
-  })();
-</script>
 </body>
 </html>
