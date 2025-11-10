@@ -69,7 +69,7 @@
     // ✅ Load opposite-gender IDs dynamically
     async function loadOppositeIDs() {
       try {
-        const { data, error } = await supabase.rpc("get_opposite_ids", { p_participant_id: pid });
+        const { data, error } = await supabase.rpc("get_opposite_ids", { p_pid: pid });
         if (error) throw error;
         if (!data || data.length === 0) {
           numbersDiv.innerHTML = "<p>No participants available to select from.</p>";
