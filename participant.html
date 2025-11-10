@@ -13,33 +13,44 @@
     }
     label, input {
       display: block;
-      margin: 1em 0;
-    }
-    .input-wrapper {
-      position: relative;
-      display: flex;
-      align-items: center;
+      margin: 1em 0 0.5em;
     }
     input[type="text"], input[type="password"] {
-      padding: 0.5em 2.5em 0.5em 0.5em; /* space for eye icon */
+      padding: 0.5em;
       width: 100%;
       font-size: 16px;
       box-sizing: border-box;
     }
-    .toggle-eye {
-      position: absolute;
-      right: 8px;
-      background: none;
+    .password-container {
+      display: flex;
+      align-items: center;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      overflow: hidden;
+    }
+    .password-container input {
+      flex: 1;
+      border: none;
+      outline: none;
+      padding: 0.6em;
+      font-size: 16px;
+    }
+    .password-container button {
+      background: #eee;
       border: none;
       cursor: pointer;
       font-size: 1.1em;
-      color: #555;
+      padding: 0 10px;
+      height: 100%;
+    }
+    .password-container button:hover {
+      background: #ddd;
     }
     button {
       padding: 0.6em 1.2em;
       font-size: 16px;
       cursor: pointer;
-      margin-top: 10px;
+      margin-top: 15px;
     }
     #result {
       margin-top: 1em;
@@ -55,9 +66,9 @@
   <input type="text" id="pid" placeholder="M12 / F21" maxlength="6" />
 
   <label for="pw">Password</label>
-  <div class="input-wrapper">
+  <div class="password-container">
     <input type="password" id="pw" placeholder="Enter your password" />
-    <button type="button" class="toggle-eye" id="togglePw">👁</button>
+    <button type="button" id="togglePw">👁</button>
   </div>
 
   <button id="loginBtn">Login</button>
@@ -72,19 +83,25 @@
     const pidInput = document.getElementById("pid");
     const pwInput = document.getElementById("pw");
     const resultDiv = document.getElementById("result");
+    const togglePw = document.getElementById("togglePw");
 
     // 👁 Password show/hide toggle
-    document.getElementById("togglePw").addEventListener("click", (e) => {
-      e.preventDefault();
-      pwInput.type = pwInput.type === "password" ? "text" : "password";
-      e.target.textContent = pwInput.type === "password" ? "👁" : "🙈";
+    togglePw.addEventListener("click", () => {
+      if (pwInput.type === "password") {
+        pwInput.type = "text";
+        togglePw.textContent = "🙈";
+      } else {
+        pwInput.type = "password";
+        togglePw.textContent = "👁";
+      }
     });
 
-    // 🟢 Normalize ID to uppercase
+    // 🔠 Normalize ID to uppercase automatically
     pidInput.addEventListener("input", () => {
       pidInput.value = pidInput.value.toUpperCase();
     });
 
+    // 🧠 Login logic
     document.getElementById("loginBtn").addEventListener("click", async () => {
       const pid = pidInput.value.trim();
       const pw = pwInput.value.trim();
@@ -108,13 +125,18 @@
         }
 
         if (data && data.length > 0) {
-          // ✅ Store session info securely
+          // ✅ Friendly success message
+          resultDiv.innerHTML = "<p style='color:green;'>✅ Login successful! Redirecting…</p>";
+
+          // ✅ Store session info (secure)
           sessionStorage.setItem("pid", pid);
           sessionStorage.setItem("pw", pw);
           sessionStorage.setItem("pname", data[0].out_name || "");
 
-          // ✅ Redirect to selection page (no URL params)
-          window.location.href = "select.html";
+          // ⏳ Delay redirect so message shows briefly
+          setTimeout(() => {
+            window.location.href = "select.html";
+          }, 1000);
         } else {
           resultDiv.innerHTML = "<p style='color:red'>Invalid ID or password.</p>";
         }
