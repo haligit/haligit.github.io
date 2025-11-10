@@ -44,7 +44,7 @@
 
     document.getElementById("welcome").textContent = `Welcome ${pid} - ${pname}`;
 
-    // ✅ Verify credentials again before allowing access
+    // ✅ Verify credentials before allowing access
     async function verifySession() {
       const { data, error } = await supabase.rpc("verify_participant_login", {
         p_participant_id: pid,
@@ -56,7 +56,7 @@
         window.location.replace("participant.html");
       }
     }
-    verifySession(); // Run immediately
+    verifySession();
 
     const numbersDiv = document.getElementById("numbers");
     const priorityListDiv = document.getElementById("priorityList");
@@ -66,37 +66,51 @@
     const selectedList = [];
     let existingSelections = [];
 
-    // --- Create Number Grid
-    for (let i = 1; i <= 50; i++) {
-      const cell = document.createElement("div");
-      cell.classList.add("number-cell");
-      cell.textContent = i;
-      cell.dataset.number = i;
-      cell.addEventListener("click", () => toggleSelection(i, cell));
-      numbersDiv.appendChild(cell);
+    // ✅ Load opposite-gender IDs dynamically
+    async function loadOppositeIDs() {
+      try {
+        const { data, error } = await supabase.rpc("get_opposite_ids", { p_participant_id: pid });
+        if (error) throw error;
+        if (!data || data.length === 0) {
+          numbersDiv.innerHTML = "<p>No participants available to select from.</p>";
+          return;
+        }
+
+        // Build grid with returned IDs
+        numbersDiv.innerHTML = "";
+        data.forEach(row => {
+          const cell = document.createElement("div");
+          cell.classList.add("number-cell");
+          cell.textContent = row.participant_id;
+          cell.dataset.number = row.participant_id;
+          cell.addEventListener("click", () => toggleSelection(row.participant_id, cell));
+          numbersDiv.appendChild(cell);
+        });
+      } catch (err) {
+        console.error("Error loading IDs:", err);
+      }
     }
 
-    function toggleSelection(number, cell) {
-      const index = selectedList.indexOf(number);
+    function toggleSelection(id, cell) {
+      const index = selectedList.indexOf(id);
       if (index > -1) {
         selectedList.splice(index, 1);
         cell.classList.remove("selected");
       } else {
-        selectedList.push(number);
+        selectedList.push(id);
         cell.classList.add("selected");
       }
-      updatePriorityDisplay();
+      updateSelectionDisplay();
     }
 
-    function updatePriorityDisplay() {
+    function updateSelectionDisplay() {
       if (selectedList.length === 0) {
         priorityListDiv.textContent = "None";
         confirmBtn.disabled = false;
         return;
       }
-      let output = "";
-      selectedList.forEach((num, idx) => output += `Priority ${idx + 1} = ${num}\n`);
-      priorityListDiv.textContent = output.trim();
+      // ✅ New simplified summary
+      priorityListDiv.textContent = `These are your selections: ${selectedList.join(", ")}`;
       confirmBtn.disabled = false;
     }
 
@@ -110,12 +124,13 @@
         if (error) throw error;
         if (data && data.selections) {
           existingSelections = data.selections;
-          existingSelections.forEach(n => {
+          existingSelections.forEach(sel => {
             const cell = [...document.querySelectorAll(".number-cell")]
-              .find(c => parseInt(c.dataset.number) === n);
+              .find(c => c.dataset.number === sel);
             if (cell) cell.classList.add("selected");
           });
-          updatePriorityDisplay();
+          selectedList.push(...existingSelections);
+          updateSelectionDisplay();
         }
       } catch (err) {
         console.error("Load error:", err);
@@ -155,10 +170,14 @@
     clearBtn.addEventListener("click", () => {
       selectedList.length = 0;
       document.querySelectorAll(".number-cell.selected").forEach(c => c.classList.remove("selected"));
-      updatePriorityDisplay();
+      updateSelectionDisplay();
     });
 
-    loadParticipantData();
+    // Initialize page
+    (async () => {
+      await loadOppositeIDs();
+      await loadParticipantData();
+    })();
   </script>
 </body>
 </html>
