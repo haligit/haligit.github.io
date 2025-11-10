@@ -1,150 +1,150 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Participant Login</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 2em;
-      max-width: 500px;
-      margin: auto;
-    }
-    label, input {
-      display: block;
-      margin: 1em 0 0.5em;
-    }
-    input[type="text"], input[type="password"] {
-      padding: 0.5em;
-      width: 100%;
-      font-size: 16px;
-      box-sizing: border-box;
-    }
-    .password-container {
-      display: flex;
-      align-items: center;
-      border: 1px solid #ccc;
-      border-radius: 5px;
-      overflow: hidden;
-    }
-    .password-container input {
-      flex: 1;
-      border: none;
-      outline: none;
-      padding: 0.6em;
-      font-size: 16px;
-    }
-    .password-container button {
-      background: #eee;
-      border: none;
-      cursor: pointer;
-      font-size: 1.1em;
-      padding: 0 10px;
-      height: 100%;
-    }
-    .password-container button:hover {
-      background: #ddd;
-    }
-    button {
-      padding: 0.6em 1.2em;
-      font-size: 16px;
-      cursor: pointer;
-      margin-top: 15px;
-    }
-    #result {
-      margin-top: 1em;
-      font-weight: bold;
-    }
-  </style>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Participant Login</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    padding: 2em;
+    max-width: 420px;
+    margin: auto;
+    text-align: center;
+  }
+  label {
+    display:block;
+    text-align:left;
+    margin-top:12px;
+    margin-bottom:6px;
+  }
+  .pw-container {
+    position: relative;
+    display: block;
+  }
+  input[type="text"], input[type="password"] {
+    width: 100%;
+    padding: 10px 40px 10px 10px;
+    font-size: 16px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    box-sizing: border-box;
+  }
+  #togglePw {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    line-height: 1;
+    color: #555;
+  }
+  #togglePw:hover { color: #000; }
+  button.primary {
+    margin-top: 1em;
+    width: 100%;
+    background:#2f7d32;
+    color:#fff;
+    border:none;
+    border-radius:6px;
+    font-size:16px;
+    padding:0.6em 1.2em;
+    cursor:pointer;
+  }
+  #result { margin-top:1em;font-weight:bold;min-height:1.2em;}
+  .err {color:#c62828;} .ok{color:#2e7d32;}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
   <h2>Participant Login</h2>
+  <p style="font-size:13px;color:#666;">Enter your participant ID and password (password given by admin).</p>
 
-  <label for="pid">Participant ID (M/F…)</label>
-  <input type="text" id="pid" placeholder="M12 / F21" maxlength="6" />
+  <label for="pidInput">Participant ID (e.g., M12 / F5)</label>
+  <input id="pidInput" type="text" placeholder="M12 or F5" autocomplete="off">
 
-  <label for="pw">Password</label>
-  <div class="password-container">
-    <input type="password" id="pw" placeholder="Enter your password" />
-    <button type="button" id="togglePw">👁</button>
+  <label for="pwInput">Password</label>
+  <div class="pw-container">
+    <input id="pwInput" type="password" placeholder="Enter password" autocomplete="off">
+    <button id="togglePw" type="button" aria-label="Show password">👁</button>
   </div>
 
-  <button id="loginBtn">Login</button>
-  <div id="result"></div>
+  <button id="loginBtn" class="primary">Login</button>
+  <div id="result" role="status"></div>
 
-  <script>
-    // ✅ Supabase config
-    const SUPABASE_URL = "https://cfuwtozobaypksesmxsi.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNmdXd0b3pvYmF5cGtzZXNteHNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDc1NjksImV4cCI6MjA3NjcyMzU2OX0.SbpESIaS7JZJmWHQ6ApifGDPYZZf3ekdQ0T_mgHCPSc";
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+<script>
+  const SUPABASE_URL = "https://cfuwtozobaypksesmxsi.supabase.co";
+  const SUPABASE_ANON_KEY =
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNmdXd0b3pvYmF5cGtzZXNteHNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDc1NjksImV4cCI6MjA3NjcyMzU2OX0.SbpESIaS7JZJmWHQ6ApifGDPYZZf3ekdQ0T_mgHCPSc";
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    const pidInput = document.getElementById("pid");
-    const pwInput = document.getElementById("pw");
-    const resultDiv = document.getElementById("result");
-    const togglePw = document.getElementById("togglePw");
+  const pidInput = document.getElementById("pidInput");
+  const pwInput = document.getElementById("pwInput");
+  const togglePw = document.getElementById("togglePw");
+  const loginBtn = document.getElementById("loginBtn");
+  const resultDiv = document.getElementById("result");
 
-    // 👁 Password show/hide toggle
-    togglePw.addEventListener("click", () => {
-      if (pwInput.type === "password") {
-        pwInput.type = "text";
-        togglePw.textContent = "🙈";
+  // Normalize ID to uppercase
+  pidInput.addEventListener("input", e => e.target.value = e.target.value.toUpperCase());
+
+  // 👁 Toggle visibility using emoji
+  let visible = false;
+  togglePw.addEventListener("click", ()=>{
+    visible = !visible;
+    pwInput.type = visible ? "text" : "password";
+    togglePw.textContent = visible ? "🙈" : "👁";
+  });
+
+  function showMsg(msg, ok=false){
+    resultDiv.innerHTML = ok ? `<span class="ok">${msg}</span>` : `<span class="err">${msg}</span>`;
+  }
+
+  async function loginParticipant() {
+    const pid = pidInput.value.trim().toUpperCase();
+    const pw = pwInput.value.trim();
+    if (!pid || !pw) {
+      showMsg("Please enter both ID and Password.");
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.rpc('verify_participant_login', {
+        p_participant_id: pid,
+        p_password: pw
+      });
+
+      if (error) throw error;
+
+      if (Array.isArray(data) && data.length > 0) {
+        const row = data[0];
+        showMsg("✅ Login successful! Redirecting…", true);
+
+        // ✅ Store verified info in session (secure)
+        sessionStorage.setItem("pid", row.out_participant_id);
+        sessionStorage.setItem("pw", pw);
+        sessionStorage.setItem("pname", row.out_name || "");
+
+        // Secure redirect — no URL params
+        setTimeout(() => window.location.href = "select.html", 800);
       } else {
-        pwInput.type = "password";
-        togglePw.textContent = "👁";
+        showMsg("Invalid ID or Password.");
       }
-    });
+    } catch (err) {
+      console.error("Login error:", err);
+      showMsg(err.message || "Error connecting to server.");
+    }
+  }
 
-    // 🔠 Normalize ID to uppercase automatically
-    pidInput.addEventListener("input", () => {
-      pidInput.value = pidInput.value.toUpperCase();
-    });
-
-    // 🧠 Login logic
-    document.getElementById("loginBtn").addEventListener("click", async () => {
-      const pid = pidInput.value.trim();
-      const pw = pwInput.value.trim();
-      if (!pid || !pw) {
-        resultDiv.innerHTML = "<p style='color:red'>Enter both ID and Password.</p>";
-        return;
-      }
-
-      resultDiv.textContent = "Verifying…";
-
-      try {
-        const { data, error } = await supabase.rpc("verify_participant_login", {
-          p_participant_id: pid,
-          p_password: pw
-        });
-
-        if (error) {
-          console.error(error);
-          resultDiv.innerHTML = `<p style='color:red'>${error.message}</p>`;
-          return;
-        }
-
-        if (data && data.length > 0) {
-          // ✅ Friendly success message
-          resultDiv.innerHTML = "<p style='color:green;'>✅ Login successful! Redirecting…</p>";
-
-          // ✅ Store session info (secure)
-          sessionStorage.setItem("pid", pid);
-          sessionStorage.setItem("pw", pw);
-          sessionStorage.setItem("pname", data[0].out_name || "");
-
-          // ⏳ Delay redirect so message shows briefly
-          setTimeout(() => {
-            window.location.href = "select.html";
-          }, 1000);
-        } else {
-          resultDiv.innerHTML = "<p style='color:red'>Invalid ID or password.</p>";
-        }
-      } catch (err) {
-        console.error(err);
-        resultDiv.innerHTML = "<p style='color:red'>Error connecting to server.</p>";
-      }
-    });
-  </script>
+  loginBtn.addEventListener("click", loginParticipant);
+  [pidInput, pwInput].forEach(el => el.addEventListener("keydown", e => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      loginParticipant();
+    }
+  }));
+</script>
 </body>
 </html>
