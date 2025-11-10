@@ -42,7 +42,9 @@
     line-height: 1;
     color: #555;
   }
-  #togglePw:hover { color: #000; }
+  #togglePw:hover {
+    color: #000;
+  }
   button.primary {
     margin-top: 1em;
     width: 100%;
@@ -111,24 +113,30 @@
     }
 
     try {
+      console.log("Checking login:", pid, pw);
       const { data, error } = await supabase.rpc('verify_participant_login', {
         p_participant_id: pid,
         p_password: pw
       });
 
+      console.log("RPC result:", data, error);
+
       if (error) throw error;
 
+      // ✅ Supabase RPC can return either an array or null
       if (Array.isArray(data) && data.length > 0) {
         const row = data[0];
-        showMsg("✅ Login successful! Redirecting…", true);
+        showMsg("✅ Login successful!", true);
 
-        // ✅ Store verified info in session (secure)
+        // ✅ Securely store session info (no URL)
         sessionStorage.setItem("pid", row.out_participant_id);
-        sessionStorage.setItem("pw", pw);
         sessionStorage.setItem("pname", row.out_name || "");
+        sessionStorage.setItem("pw", pw);
 
-        // Secure redirect — no URL params
-        setTimeout(() => window.location.href = "select.html", 800);
+        // ✅ Secure redirect — no query params
+        setTimeout(() => {
+          window.location.href = "select.html";
+        }, 600);
       } else {
         showMsg("Invalid ID or Password.");
       }
