@@ -241,9 +241,16 @@ cell.textContent = fullId;
           return;
         }
 
-        const rows = data || [];
-        const matches   = rows.filter(r => r.match_id);
-        const interests = rows.filter(r => r.interest_id);
+const rows = data || [];
+
+// --- Matches ---
+const matches = rows.filter(r => r.match_id);
+const matchIds = matches.map(m => m.match_id);
+
+// --- Interests (remove those who are already matches) ---
+let interests = rows
+  .filter(r => r.interest_id)
+  .filter(r => !matchIds.includes(r.interest_id));
 
         // Matches
         matchesList.innerHTML = "";
