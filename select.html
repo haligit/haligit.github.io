@@ -86,33 +86,43 @@
     let existingSelections = [];
 
     // --- Load dynamic grid based on opposite IDs (using your get_opposite_ids RPC) ---
-    async function loadNumbers() {
-      try {
-        const { data, error } = await supabase.rpc("get_opposite_ids", {
-          p_participant_id: pid
-        });
-        if (error) {
-          console.error("get_opposite_ids error:", error.message);
-          return;
-        }
+async function loadNumbers() {
+  try {
+    console.log("Loading numbers for:", pid);
 
-        numbersDiv.innerHTML = "";
-        selectedList = [];
+    const { data, error } = await supabase.rpc("get_opposite_ids", {
+      p_pid: pid
+    });
 
-        (data || []).forEach(row => {
-          const fullId = row; // e.g. "M2" or "F5"
-          const numPart = fullId.substring(1); // just the number for display
-          const cell = document.createElement("div");
-          cell.className = "number-cell";
-          cell.textContent = numPart;
-          cell.dataset.pid = fullId;
-          cell.addEventListener("click", () => toggleSelection(fullId, cell));
-          numbersDiv.appendChild(cell);
-        });
-      } catch (err) {
-        console.error("loadNumbers error:", err);
-      }
+    if (error) {
+      console.error("get_opposite_ids RPC error:", error.message);
+      return;
     }
+
+    console.log("RPC returned:", data);
+
+    numbersDiv.innerHTML = "";
+    selectedList.length = 0;
+
+    (data || []).forEach(row => {
+      const fullId = row.id;     // IMPORTANT
+      const numberOnly = fullId.slice(1); // remove M/F
+      const cell = document.createElement("div");
+
+      cell.classList.add("number-cell");
+      cell.dataset.pid = fullId;
+      cell.textContent = numberOnly;
+
+      cell.addEventListener("click", () => toggleSelection(fullId, cell));
+
+      numbersDiv.appendChild(cell);
+    });
+
+  } catch (err) {
+    console.error("loadNumbers error:", err);
+  }
+}
+
 
     function toggleSelection(id, cell) {
       const idx = selectedList.indexOf(id);
