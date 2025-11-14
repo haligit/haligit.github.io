@@ -105,13 +105,15 @@ async function loadNumbers() {
     selectedList.length = 0;
 
     (data || []).forEach(row => {
-      const fullId = row.id;     // IMPORTANT
-      const numberOnly = fullId.slice(1); // remove M/F
-      const cell = document.createElement("div");
+const fullId = row.id;      // "M12", "F3"
+const cell = document.createElement("div");
 
-      cell.classList.add("number-cell");
-      cell.dataset.pid = fullId;
-      cell.textContent = numberOnly;
+cell.classList.add("number-cell");
+cell.dataset.pid = fullId;
+
+// SHOW FULL ID (restore original format)
+cell.textContent = fullId;
+
 
       cell.addEventListener("click", () => toggleSelection(fullId, cell));
 
