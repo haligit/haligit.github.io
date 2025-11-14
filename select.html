@@ -14,10 +14,6 @@
     #summary { margin-top: 1.5em; text-align: center; font-size: 1em; }
     #confirmBtn, #clearBtn { margin-top: 1em; padding: 0.8em 1.6em; font-size: 1em; cursor: pointer; margin-right: 1em; }
     #priorityList { text-align: left; margin-top: 1em; font-family: monospace; white-space: pre-line; }
-
-    /* NEW SECTIONS */
-    .section-block { margin-top: 25px; padding: 12px; background: #fafafa; border: 1px solid #ddd; border-radius: 8px; }
-    .match-row, .interest-row { padding: 6px 0; border-bottom: 1px solid #e0e0e0; }
   </style>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -29,20 +25,21 @@
   <div id="summary">
     <p><strong>Your Selections:</strong></p>
     <div id="priorityList">None</div>
+
+    <!-- NEW: Matches section (immediately under summary) -->
+    <div id="matchesBlock" style="margin-top:1em; text-align:left; display:none;">
+      <p><strong>Matches:</strong></p>
+      <div id="matchesList"></div>
+    </div>
+
+    <!-- NEW: Incoming interest section -->
+    <div id="interestBlock" style="margin-top:1em; text-align:left; display:none;">
+      <p><strong>People interested in you:</strong></p>
+      <div id="interestList"></div>
+    </div>
+
     <button id="confirmBtn" disabled>Confirm Selection</button>
     <button id="clearBtn">Clear All</button>
-  </div>
-
-  <!-- 🔵 NEW SECTION A: Matches -->
-  <div id="matchSection" class="section-block" style="display:none;">
-    <h3>Your Matches</h3>
-    <div id="matchesList"></div>
-  </div>
-
-  <!-- 🔵 NEW SECTION B: Incoming Interest -->
-  <div id="interestSection" class="section-block" style="display:none;">
-    <h3>People Interested in You</h3>
-    <div id="interestList"></div>
   </div>
 
   <script>
@@ -50,8 +47,8 @@
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNmdXd0b3pvYmF5cGtzZXNteHNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDc1NjksImV4cCI6MjA3NjcyMzU2OX0.SbpESIaS7JZJmWHQ6ApifGDPYZZf3ekdQ0T_mgHCPSc";
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    const pid = sessionStorage.getItem("pid");
-    const pw  = sessionStorage.getItem("pw");
+    const pid   = sessionStorage.getItem("pid");
+    const pw    = sessionStorage.getItem("pw");
     const pname = sessionStorage.getItem("pname") || "Participant";
 
     if (!pid || !pw) {
@@ -61,7 +58,7 @@
 
     document.getElementById("welcome").textContent = `Welcome ${pid} - ${pname}`;
 
-    // Secure session re-verification
+    // Re-verify session via RPC
     async function verifySession() {
       const { data, error } = await supabase.rpc("verify_participant_login", {
         p_participant_id: pid,
@@ -75,43 +72,46 @@
     }
     verifySession();
 
-    // DOM references
-    const numbersDiv = document.getElementById("numbers");
+    const numbersDiv      = document.getElementById("numbers");
     const priorityListDiv = document.getElementById("priorityList");
-    const confirmBtn = document.getElementById("confirmBtn");
-    const clearBtn = document.getElementById("clearBtn");
+    const confirmBtn      = document.getElementById("confirmBtn");
+    const clearBtn        = document.getElementById("clearBtn");
 
-    const matchSection = document.getElementById("matchSection");
-    const matchesList = document.getElementById("matchesList");
-
-    const interestSection = document.getElementById("interestSection");
-    const interestList = document.getElementById("interestList");
+    const matchesBlock    = document.getElementById("matchesBlock");
+    const matchesList     = document.getElementById("matchesList");
+    const interestBlock   = document.getElementById("interestBlock");
+    const interestList    = document.getElementById("interestList");
 
     let selectedList = [];
     let existingSelections = [];
 
-    // Create dynamic grid from database
+    // --- Load dynamic grid based on opposite IDs (using your get_opposite_ids RPC) ---
     async function loadNumbers() {
-      const prefix = pid.startsWith("M") ? "F" : "M";
-      const { data, error } = await supabase.rpc("get_opposite_ids", { p_participant_id: pid });
-      if (error) {
-        console.error(error);
-        return;
+      try {
+        const { data, error } = await supabase.rpc("get_opposite_ids", {
+          p_participant_id: pid
+        });
+        if (error) {
+          console.error("get_opposite_ids error:", error.message);
+          return;
+        }
+
+        numbersDiv.innerHTML = "";
+        selectedList = [];
+
+        (data || []).forEach(row => {
+          const fullId = row; // e.g. "M2" or "F5"
+          const numPart = fullId.substring(1); // just the number for display
+          const cell = document.createElement("div");
+          cell.className = "number-cell";
+          cell.textContent = numPart;
+          cell.dataset.pid = fullId;
+          cell.addEventListener("click", () => toggleSelection(fullId, cell));
+          numbersDiv.appendChild(cell);
+        });
+      } catch (err) {
+        console.error("loadNumbers error:", err);
       }
-
-      // Create grid
-      numbersDiv.innerHTML = "";
-      selectedList = [];
-
-      data.forEach(val => {
-        const num = val.substring(1);
-        const cell = document.createElement("div");
-        cell.className = "number-cell";
-        cell.textContent = num;
-        cell.dataset.pid = val;
-        cell.addEventListener("click", () => toggleSelection(val, cell));
-        numbersDiv.appendChild(cell);
-      });
     }
 
     function toggleSelection(id, cell) {
@@ -124,140 +124,187 @@
         cell.classList.add("selected");
       }
       updateSummary();
-      loadMatchList();
+      // We DON'T immediately update matches here, because matches are based on saved selections.
+      // They will reflect the last confirmed save.
     }
 
     function updateSummary() {
-      if (selectedList.length === 0) {
+      if (!selectedList.length) {
         priorityListDiv.textContent = "None";
         confirmBtn.disabled = false;
         return;
       }
-      priorityListDiv.textContent = `You selected: ${selectedList.join(", ")}`;
+      priorityListDiv.textContent = "You selected: " + selectedList.join(", ");
       confirmBtn.disabled = false;
     }
 
     async function loadExistingSelections() {
-      const { data, error } = await supabase
-        .from("participants")
-        .select("selections")
-        .eq("participant_id", pid)
-        .maybeSingle();
+      try {
+        const { data, error } = await supabase
+          .from("participants")
+          .select("selections")
+          .eq("participant_id", pid)
+          .maybeSingle();
 
-      if (data && data.selections) {
-        existingSelections = data.selections;
-        existingSelections.forEach(id => {
-          const cell = [...document.querySelectorAll(".number-cell")]
-            .find(c => c.dataset.pid === id);
-          if (cell) {
-            cell.classList.add("selected");
-            selectedList.push(id);
-          }
-        });
-        updateSummary();
+        if (error) {
+          console.error("loadExistingSelections error:", error.message);
+          return;
+        }
+
+        if (data && data.selections) {
+          existingSelections = data.selections;
+          existingSelections.forEach(selId => {
+            const cell = document.querySelector(`.number-cell[data-pid="${selId}"]`);
+            if (cell) {
+              cell.classList.add("selected");
+              if (!selectedList.includes(selId)) {
+                selectedList.push(selId);
+              }
+            }
+          });
+          updateSummary();
+        }
+      } catch (err) {
+        console.error("loadExistingSelections error:", err);
       }
     }
 
     async function saveSelections() {
       const newSelections = [...selectedList];
 
-      const { data: existing } = await supabase
-        .from("participants")
-        .select("id")
-        .eq("participant_id", pid)
-        .maybeSingle();
+      try {
+        const { data: existing, error: exError } = await supabase
+          .from("participants")
+          .select("id")
+          .eq("participant_id", pid)
+          .maybeSingle();
 
-      if (existing) {
-        await supabase
-          .from("participants")
-          .update({ selections: newSelections })
-          .eq("participant_id", pid);
-      } else {
-        await supabase
-          .from("participants")
-          .insert([{ participant_id: pid, name: pname, selections: newSelections }]);
+        if (exError) {
+          console.error("check existing error:", exError.message);
+        }
+
+        if (existing) {
+          const { error: updError } = await supabase
+            .from("participants")
+            .update({ selections: newSelections })
+            .eq("participant_id", pid);
+          if (updError) throw updError;
+        } else {
+          const { error: insError } = await supabase
+            .from("participants")
+            .insert([{ participant_id: pid, name: pname, selections: newSelections }]);
+          if (insError) throw insError;
+        }
+
+        alert(`✅ Thank you, ${pname}! Your selections are saved.`);
+        sessionStorage.clear();
+        window.location.replace("scanqr.html");
+      } catch (err) {
+        console.error("saveSelections error:", err);
+        alert("⚠️ Failed to save data.");
       }
-
-      alert("Selections saved successfully!");
-      sessionStorage.clear();
-      window.location.replace("scanqr.html");
     }
 
     confirmBtn.addEventListener("click", saveSelections);
+
     clearBtn.addEventListener("click", () => {
       selectedList = [];
+      document.querySelectorAll(".number-cell.selected").forEach(c => c.classList.remove("selected"));
       updateSummary();
-      document.querySelectorAll(".number-cell").forEach(c => c.classList.remove("selected"));
-      loadMatchList();
+      // Matches and interests will remain based on last saved state
     });
 
-    // 🔵 NEW — Load matches and interests
-    async function loadMatchList() {
-      const { data, error } = await supabase.rpc("get_matches_and_interests", {
-        p_participant_id: pid
-      });
+    // --- NEW: Load matches + interests via secure RPC ---
+    async function loadMatchesAndInterests() {
+      try {
+        // This RPC should be the participant-safe one you created:
+        // get_matches_and_interests_secure(p_pid text)
+        const { data, error } = await supabase.rpc("get_matches_and_interests_secure", {
+          p_pid: pid
+        });
+        if (error) {
+          console.error("get_matches_and_interests_secure error:", error.message);
+          matchesBlock.style.display = "none";
+          interestBlock.style.display = "none";
+          return;
+        }
 
-      if (error) {
-        console.error(error);
-        return;
+        const rows = data || [];
+        const matches   = rows.filter(r => r.match_id);
+        const interests = rows.filter(r => r.interest_id);
+
+        // Matches
+        matchesList.innerHTML = "";
+        if (matches.length) {
+          matchesBlock.style.display = "block";
+          matches.forEach(m => {
+            const otherId = m.match_id;
+            const row = document.createElement("div");
+            row.style.marginBottom = "6px";
+            row.innerHTML = `
+              • ${otherId} — <span>Number will be revealed when both parties agree.</span><br>
+              <label>
+                <input type="checkbox" data-other="${otherId}">
+                Share my number (?)
+              </label>
+            `;
+            matchesList.appendChild(row);
+
+            const checkbox = row.querySelector("input[type='checkbox']");
+            checkbox.addEventListener("change", () => {
+              updateSharePreference(otherId, checkbox.checked);
+            });
+          });
+        } else {
+          matchesBlock.style.display = "none";
+        }
+
+        // Incoming interest
+        interestList.innerHTML = "";
+        if (interests.length) {
+          interestBlock.style.display = "block";
+          interests.forEach(i => {
+            const otherId = i.interest_id;
+            const row = document.createElement("div");
+            row.style.marginBottom = "4px";
+            row.textContent = otherId;
+            interestList.appendChild(row);
+          });
+        } else {
+          interestBlock.style.display = "none";
+        }
+
+      } catch (err) {
+        console.error("loadMatchesAndInterests error:", err);
+        matchesBlock.style.display = "none";
+        interestBlock.style.display = "none";
       }
-
-      const matches = data.matches || [];
-      const interests = data.interests || [];
-
-      // Show/hide sections
-      matchSection.style.display = matches.length ? "block" : "none";
-      interestSection.style.display = interests.length ? "block" : "none";
-
-      // Build matches list
-      matchesList.innerHTML = "";
-      matches.forEach(m => {
-        const row = document.createElement("div");
-        row.className = "match-row";
-        row.innerHTML = `
-          <strong>${m.id}</strong><br>
-          ${
-            m.telephone
-              ? `<span style='color:green;'>Telephone: ${m.telephone}</span>`
-              : `<span style='color:#777;'>Telephone will be revealed when both parties agree.</span>`
-          }
-          <br>
-          <label><input type="checkbox" data-share="${m.id}"> Share my number (?)</label>
-        `;
-        matchesList.appendChild(row);
-
-        // Checkbox handler
-        const checkbox = row.querySelector("input");
-        checkbox.addEventListener("change", () => updateShare(m.id, checkbox.checked));
-      });
-
-      // Build interests list
-      interestList.innerHTML = "";
-      interests.forEach(m => {
-        const row = document.createElement("div");
-        row.className = "interest-row";
-        row.textContent = m.id;
-        interestList.appendChild(row);
-      });
     }
 
-    async function updateShare(otherId, share) {
-      const i_am = pid < otherId ? "p1" : "p2";
-
-      await supabase.rpc("set_number_share", {
-        p1: pid < otherId ? pid : otherId,
-        p2: pid < otherId ? otherId : pid,
-        i_am,
-        i_share: share,
-        admin_secret: "12345"
-      });
-
-      loadMatchList();
+    // --- NEW: Update number share preference ---
+    async function updateSharePreference(otherId, agree) {
+      try {
+        const { error } = await supabase.rpc("update_number_share", {
+          p_pid: pid,
+          p_other: otherId,
+          p_agree: agree
+        });
+        if (error) {
+          console.error("update_number_share error:", error.message);
+        }
+        // In future we can re-load to check if both agreed and then reveal numbers.
+        // For now, we only persist the choice.
+      } catch (err) {
+        console.error("updateSharePreference error:", err);
+      }
     }
 
-    // Run everything
-    loadNumbers().then(loadExistingSelections).then(loadMatchList);
-
+    // Initial load
+    (async function init() {
+      await loadNumbers();
+      await loadExistingSelections();
+      await loadMatchesAndInterests();  // uses last saved selections
+    })();
   </script>
 </body>
 </html>
