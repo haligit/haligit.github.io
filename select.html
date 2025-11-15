@@ -328,11 +328,16 @@ let interests = rows
     }
 
     // Initial load
-    (async function init() {
-      await loadNumbers();
-      await loadExistingSelections();
-      await loadMatchesAndInterests();  // uses last saved selections
-    })();
+(async function init() {
+  await loadNumbers();
+  await loadExistingSelections();
+
+  // ⭐ ensure saved matches load AFTER selections are rendered
+  setTimeout(async () => {
+    await loadMatchesAndInterests();
+  }, 150);
+})();
+
   </script>
 </body>
 </html>
