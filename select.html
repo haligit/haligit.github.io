@@ -265,24 +265,47 @@ let interests = rows
         matchesList.innerHTML = "";
         if (matches.length) {
           matchesBlock.style.display = "block";
-          matches.forEach(m => {
-            const otherId = m.match_id;
-            const row = document.createElement("div");
-            row.style.marginBottom = "6px";
-            row.innerHTML = `
-              • ${otherId} — <span>Number will be revealed when both parties agree.</span><br>
-              <label>
-                <input type="checkbox" data-other="${otherId}">
-                Share my number (?)
-              </label>
-            `;
-            matchesList.appendChild(row);
+matches.forEach(m => {
+  const otherId = m.match_id;
+  const revealNumber = m.reveal_number;   // NEW — may be null or actual phone
 
-            const checkbox = row.querySelector("input[type='checkbox']");
-            checkbox.addEventListener("change", () => {
-              updateSharePreference(otherId, checkbox.checked);
-            });
-          });
+  const row = document.createElement("div");
+  row.style.marginBottom = "10px";
+
+  // If both agreed → show number
+  if (revealNumber) {
+    row.innerHTML = `
+      • ${otherId} — <strong>📞 ${revealNumber}</strong><br>
+      <label>
+        <input type="checkbox" data-other="${otherId}" checked>
+        Share my number (?)
+      </label>
+    `;
+  } else {
+    // Not both agreed → show message
+    row.innerHTML = `
+      • ${otherId} — <span>Number will be revealed when both parties agree.</span><br>
+      <label>
+        <input type="checkbox" data-other="${otherId}">
+        Share my number (?)
+      </label>
+    `;
+  }
+
+  matchesList.appendChild(row);
+
+  const checkbox = row.querySelector("input[type='checkbox']");
+
+  // If revealNumber exists → checkbox must start checked
+  if (revealNumber) checkbox.checked = true;
+
+  // Any checkbox change updates DB and reloads block
+  checkbox.addEventListener("change", async () => {
+    await updateSharePreference(otherId, checkbox.checked);
+    await loadMatchesAndInterests();   // Refresh after update
+  });
+});
+
         } else {
           matchesBlock.style.display = "none";
         }
