@@ -181,41 +181,50 @@ cell.textContent = fullId;
       }
     }
 
-    async function saveSelections() {
-      const newSelections = [...selectedList];
+async function saveSelections() {
+  const newSelections = [...selectedList];
 
-      try {
-        const { data: existing, error: exError } = await supabase
-          .from("participants")
-          .select("id")
-          .eq("participant_id", pid)
-          .maybeSingle();
+  try {
+    const { data: existing, error: exError } = await supabase
+      .from("participants")
+      .select("id")
+      .eq("participant_id", pid)
+      .maybeSingle();
 
-        if (exError) {
-          console.error("check existing error:", exError.message);
-        }
-
-        if (existing) {
-          const { error: updError } = await supabase
-            .from("participants")
-            .update({ selections: newSelections })
-            .eq("participant_id", pid);
-          if (updError) throw updError;
-        } else {
-          const { error: insError } = await supabase
-            .from("participants")
-            .insert([{ participant_id: pid, name: pname, selections: newSelections }]);
-          if (insError) throw insError;
-        }
-
-        alert(`✅ Thank you, ${pname}! Your selections are saved.`);
-        sessionStorage.clear();
-        window.location.replace("scanqr.html");
-      } catch (err) {
-        console.error("saveSelections error:", err);
-        alert("⚠️ Failed to save data.");
-      }
+    if (exError) {
+      console.error("check existing error:", exError.message);
     }
+
+    if (existing) {
+      const { error: updError } = await supabase
+        .from("participants")
+        .update({ selections: newSelections })
+        .eq("participant_id", pid);
+      if (updError) throw updError;
+    } else {
+      const { error: insError } = await supabase
+        .from("participants")
+        .insert([{ participant_id: pid, name: pname, selections: newSelections }]);
+      if (insError) throw insError;
+    }
+
+    alert(`✅ Thank you, ${pname}! Your selections are saved.`);
+
+    // ⭐ NEW — Immediately reload matches & interests
+    await loadMatchesAndInterests();
+
+    // ⭐ Delay redirect (same behaviour as before)
+    setTimeout(() => {
+      sessionStorage.clear();
+      window.location.replace("scanqr.html");
+    }, 800);
+
+  } catch (err) {
+    console.error("saveSelections error:", err);
+    alert("⚠️ Failed to save data.");
+  }
+}
+
 
     confirmBtn.addEventListener("click", saveSelections);
 
