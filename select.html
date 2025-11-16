@@ -175,11 +175,89 @@ cell.textContent = fullId;
             }
           });
           updateSummary();
+          refreshLiveMatchState();   // NEW: immediate UI update
         }
       } catch (err) {
         console.error("loadExistingSelections error:", err);
       }
     }
+// 🔵 LIVE REFRESH OF MATCHES + INTEREST BASED ON TEMPORARY SELECTIONS
+async function refreshLiveMatchState() {
+  try {
+    // Load others' saved selections from DB (safe + cheap)
+    const { data: others, error } = await supabase
+      .from("participants")
+      .select("participant_id, selections");
+
+    if (error || !others) return;
+
+    const mySel = selectedList;
+    const matches = [];
+    const interests = [];
+
+    others.forEach(row => {
+      if (row.participant_id === pid) return;
+
+      const theirSel = row.selections || [];
+
+      const I_like_them = mySel.includes(row.participant_id);
+      const they_like_me = theirSel.includes(pid);
+
+      if (I_like_them && they_like_me) {
+        // mutual match
+        matches.push(row.participant_id);
+      } else if (!I_like_them && they_like_me) {
+        // they like me, but not mutual
+        interests.push(row.participant_id);
+      }
+    });
+
+    // ─────────────────────────
+    // UPDATE MATCHES UI
+    // ─────────────────────────
+    matchesList.innerHTML = "";
+    if (matches.length > 0) {
+      matchesBlock.style.display = "block";
+
+      matches.forEach(otherId => {
+        const row = document.createElement("div");
+        row.style.marginBottom = "6px";
+        row.innerHTML = `
+          • ${otherId} — <span>Number will be revealed when both parties agree.</span><br>
+          <label>
+            <input type="checkbox" disabled>
+            Share my number (?)
+          </label>
+        `;
+        matchesList.appendChild(row);
+      });
+
+    } else {
+      matchesBlock.style.display = "none";
+    }
+
+    // ─────────────────────────
+    // UPDATE INTEREST UI
+    // ─────────────────────────
+    interestList.innerHTML = "";
+    if (interests.length > 0) {
+      interestBlock.style.display = "block";
+
+      interests.forEach(otherId => {
+        const div = document.createElement("div");
+        div.style.marginBottom = "4px";
+        div.textContent = otherId;
+        interestList.appendChild(div);
+      });
+
+    } else {
+      interestBlock.style.display = "none";
+    }
+
+  } catch (err) {
+    console.error("refreshLiveMatchState error:", err);
+  }
+}
 
 async function saveSelections() {
   const newSelections = [...selectedList];
@@ -358,7 +436,13 @@ matches.forEach(m => {
   // ⭐ ensure saved matches load AFTER selections are rendered
   setTimeout(async () => {
     await loadMatchesAndInterests();
+
+    // ⭐ NEW: also refresh LIVE temporary match/interest state
+    await refreshLiveMatchState();
+
   }, 150);
+})();
+
 })();
 
   </script>
