@@ -42,9 +42,7 @@
 
   <script>
     const SUPABASE_URL = "https://cfuwtozobaypksesmxsi.supabase.co";
-    const SUPABASE_ANON_KEY =
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNmdXd0b3pvYmF5cGtzZXNteHNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDc1NjksImV4cCI6MjA3NjcyMzU2OX0.SbpESIaS7JZJmWHQ6ApifGDPYZZf3ekdQ0T_mgHCPSc";
-
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNmdXd0b3pvYmF5cGtzZXNteHNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDc1NjksImV4cCI6MjA3NjcyMzU2OX0.SbpESIaS7JZJmWHQ6ApifGDPYZZf3ekdQ0T_mgHCPSc";
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const pid   = sessionStorage.getItem("pid");
@@ -75,7 +73,6 @@
     const priorityListDiv = document.getElementById("priorityList");
     const confirmBtn      = document.getElementById("confirmBtn");
     const clearBtn        = document.getElementById("clearBtn");
-
     const matchesBlock    = document.getElementById("matchesBlock");
     const matchesList     = document.getElementById("matchesList");
     const interestBlock   = document.getElementById("interestBlock");
@@ -84,15 +81,14 @@
     let selectedList = [];
     let existingSelections = [];
 
-    /* -----------------------------------------------------
-       LOAD GRID BASED ON OPPOSITE GENDER
-    ----------------------------------------------------- */
     async function loadNumbers() {
       try {
-        const { data, error } = await supabase.rpc("get_opposite_ids", {
-          p_pid: pid
-        });
-        if (error) return;
+        const { data, error } = await supabase.rpc("get_opposite_ids", { p_pid: pid });
+
+        if (error) {
+          console.error("get_opposite_ids RPC error:", error.message);
+          return;
+        }
 
         numbersDiv.innerHTML = "";
         selectedList.length = 0;
@@ -106,6 +102,7 @@
           cell.textContent = fullId;
 
           cell.addEventListener("click", () => toggleSelection(fullId, cell));
+
           numbersDiv.appendChild(cell);
         });
 
@@ -136,109 +133,34 @@
       confirmBtn.disabled = false;
     }
 
-    /* -----------------------------------------------------
-       LOAD EXISTING SELECTIONS
-    ----------------------------------------------------- */
     async function loadExistingSelections() {
       try {
-        const { data, error } = await supabase
+        const { data } = await supabase
           .from("participants")
           .select("selections")
           .eq("participant_id", pid)
           .maybeSingle();
 
-        if (error) return;
-
         if (data && data.selections) {
           existingSelections = data.selections;
+
           existingSelections.forEach(selId => {
             const cell = document.querySelector(`.number-cell[data-pid="${selId}"]`);
             if (cell) {
               cell.classList.add("selected");
-              if (!selectedList.includes(selId)) selectedList.push(selId);
+              if (!selectedList.includes(selId)) {
+                selectedList.push(selId);
+              }
             }
           });
-          updateSummary();
-          refreshLiveMatchState();
-        }
 
+          updateSummary();
+        }
       } catch (err) {
         console.error("loadExistingSelections error:", err);
       }
     }
 
-    /* -----------------------------------------------------
-       LIVE PREVIEW OF MATCHES & INTERESTS
-    ----------------------------------------------------- */
-    async function refreshLiveMatchState() {
-      try {
-        const { data: others, error } = await supabase
-          .from("participants")
-          .select("participant_id, selections");
-
-        if (error || !others) return;
-
-        const mySel = selectedList;
-        const matches = [];
-        const interests = [];
-
-        others.forEach(row => {
-          if (row.participant_id === pid) return;
-
-          const theirSel = row.selections || [];
-
-          const I_like_them = mySel.includes(row.participant_id);
-          const they_like_me = theirSel.includes(pid);
-
-          if (I_like_them && they_like_me) {
-            matches.push(row.participant_id);
-          } else if (!I_like_them && they_like_me) {
-            interests.push(row.participant_id);
-          }
-        });
-
-        matchesList.innerHTML = "";
-        if (matches.length) {
-          matchesBlock.style.display = "block";
-
-          matches.forEach(otherId => {
-            const row = document.createElement("div");
-            row.style.marginBottom = "6px";
-            row.innerHTML = `
-              • ${otherId} — <span>Number will be revealed when both parties agree.</span><br>
-              <label>
-                <input type="checkbox" disabled>
-                Share my number (?)
-              </label>
-            `;
-            matchesList.appendChild(row);
-          });
-
-        } else {
-          matchesBlock.style.display = "none";
-        }
-
-        interestList.innerHTML = "";
-        if (interests.length) {
-          interestBlock.style.display = "block";
-          interests.forEach(otherId => {
-            const div = document.createElement("div");
-            div.style.marginBottom = "4px";
-            div.textContent = otherId;
-            interestList.appendChild(div);
-          });
-        } else {
-          interestBlock.style.display = "none";
-        }
-
-      } catch (err) {
-        console.error("refreshLiveMatchState error:", err);
-      }
-    }
-
-    /* -----------------------------------------------------
-       SAVE SELECTIONS
-    ----------------------------------------------------- */
     async function saveSelections() {
       const newSelections = [...selectedList];
 
@@ -283,9 +205,6 @@
       updateSummary();
     });
 
-    /* -----------------------------------------------------
-       LOAD MATCHES + INTERESTS FROM SECURE RPC
-    ----------------------------------------------------- */
     async function loadMatchesAndInterests() {
       try {
         const { data, error } = await supabase.rpc("get_matches_and_interests_secure", {
@@ -294,32 +213,34 @@
 
         if (error) {
           console.error("get_matches_and_interests_secure error:", error.message);
+          matchesBlock.style.display = "none";
+          interestBlock.style.display = "none";
           return;
         }
 
         const rows = data || [];
 
-        const matches   = rows.filter(r => r.match_id);
-        const matchIds  = matches.map(m => m.match_id);
-        const interests = rows
+        const matches = rows.filter(r => r.match_id);
+        const matchIds = matches.map(m => m.match_id);
+
+        let interests = rows
           .filter(r => r.interest_id)
           .filter(r => !matchIds.includes(r.interest_id));
 
-        /* ---------------------- MATCHES --------------------- */
         matchesList.innerHTML = "";
         if (matches.length) {
           matchesBlock.style.display = "block";
 
           matches.forEach(m => {
             const otherId = m.match_id;
-            const reveal = m.reveal_number;
+            const revealNumber = m.reveal_number;
 
             const row = document.createElement("div");
             row.style.marginBottom = "10px";
 
-            if (reveal) {
+            if (revealNumber) {
               row.innerHTML = `
-                • ${otherId} — <strong>📞 ${reveal}</strong><br>
+                • ${otherId} — <strong>📞 ${revealNumber}</strong><br>
                 <label>
                   <input type="checkbox" data-other="${otherId}" checked>
                   Share my number (?)
@@ -343,20 +264,18 @@
               await loadMatchesAndInterests();
             });
           });
-
         } else {
           matchesBlock.style.display = "none";
         }
 
-        /* ------------------ INTERESTS ---------------------- */
         interestList.innerHTML = "";
         if (interests.length) {
           interestBlock.style.display = "block";
           interests.forEach(i => {
-            const row = document.createElement("div");
-            row.style.marginBottom = "4px";
-            row.textContent = i.interest_id;
-            interestList.appendChild(row);
+            const div = document.createElement("div");
+            div.style.marginBottom = "4px";
+            div.textContent = i.interest_id;
+            interestList.appendChild(div);
           });
         } else {
           interestBlock.style.display = "none";
@@ -367,9 +286,6 @@
       }
     }
 
-    /* -----------------------------------------------------
-       UPDATE SHARE PREFERENCE
-    ----------------------------------------------------- */
     async function updateSharePreference(otherId, agree) {
       try {
         await supabase.rpc("update_number_share", {
@@ -382,19 +298,14 @@
       }
     }
 
-    /* -----------------------------------------------------
-       INIT
-    ----------------------------------------------------- */
     (async function init() {
       await loadNumbers();
       await loadExistingSelections();
 
       setTimeout(async () => {
         await loadMatchesAndInterests();
-        await refreshLiveMatchState();
       }, 150);
     })();
-
   </script>
 </body>
 </html>
