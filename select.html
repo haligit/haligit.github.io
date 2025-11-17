@@ -227,22 +227,29 @@
           .filter(r => r.interest_id)
           .filter(r => !matchIds.includes(r.interest_id));
 
+        // Matches
         matchesList.innerHTML = "";
         if (matches.length) {
           matchesBlock.style.display = "block";
 
           matches.forEach(m => {
-            const otherId = m.match_id;
+            const otherId      = m.match_id;
             const revealNumber = m.reveal_number;
+            const myAgree      = m.my_agree;   // NEW
 
             const row = document.createElement("div");
             row.style.marginBottom = "10px";
+
+            // Checkbox should be checked if:
+            // - I already agreed, OR
+            // - both agreed and number is revealed
+            const checkedAttr = (revealNumber || myAgree) ? "checked" : "";
 
             if (revealNumber) {
               row.innerHTML = `
                 • ${otherId} — <strong>📞 ${revealNumber}</strong><br>
                 <label>
-                  <input type="checkbox" data-other="${otherId}" checked>
+                  <input type="checkbox" data-other="${otherId}" ${checkedAttr}>
                   Share my number (?)
                 </label>
               `;
@@ -250,7 +257,7 @@
               row.innerHTML = `
                 • ${otherId} — <span>Number will be revealed when both parties agree.</span><br>
                 <label>
-                  <input type="checkbox" data-other="${otherId}">
+                  <input type="checkbox" data-other="${otherId}" ${checkedAttr}>
                   Share my number (?)
                 </label>
               `;
@@ -264,6 +271,7 @@
               await loadMatchesAndInterests();
             });
           });
+
         } else {
           matchesBlock.style.display = "none";
         }
