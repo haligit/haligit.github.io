@@ -26,13 +26,11 @@
     <p><strong>Your Selections:</strong></p>
     <div id="priorityList">None</div>
 
-    <!-- NEW: Matches section (immediately under summary) -->
     <div id="matchesBlock" style="margin-top:1em; text-align:left; display:none;">
       <p><strong>Matches:</strong></p>
       <div id="matchesList"></div>
     </div>
 
-    <!-- NEW: Incoming interest section -->
     <div id="interestBlock" style="margin-top:1em; text-align:left; display:none;">
       <p><strong>People interested in you:</strong></p>
       <div id="interestList"></div>
@@ -44,7 +42,9 @@
 
   <script>
     const SUPABASE_URL = "https://cfuwtozobaypksesmxsi.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNmdXd0b3pvYmF5cGtzZXNteHNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDc1NjksImV4cCI6MjA3NjcyMzU2OX0.SbpESIaS7JZJmWHQ6ApifGDPYZZf3ekdQ0T_mgHCPSc";
+    const SUPABASE_ANON_KEY =
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNmdXd0b3pvYmF5cGtzZXNteHNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDc1NjksImV4cCI6MjA3NjcyMzU2OX0.SbpESIaS7JZJmWHQ6ApifGDPYZZf3ekdQ0T_mgHCPSc";
+
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const pid   = sessionStorage.getItem("pid");
@@ -58,7 +58,6 @@
 
     document.getElementById("welcome").textContent = `Welcome ${pid} - ${pname}`;
 
-    // Re-verify session via RPC
     async function verifySession() {
       const { data, error } = await supabase.rpc("verify_participant_login", {
         p_participant_id: pid,
@@ -85,46 +84,35 @@
     let selectedList = [];
     let existingSelections = [];
 
-    // --- Load dynamic grid based on opposite IDs (using your get_opposite_ids RPC) ---
-async function loadNumbers() {
-  try {
-    console.log("Loading numbers for:", pid);
+    /* -----------------------------------------------------
+       LOAD GRID BASED ON OPPOSITE GENDER
+    ----------------------------------------------------- */
+    async function loadNumbers() {
+      try {
+        const { data, error } = await supabase.rpc("get_opposite_ids", {
+          p_pid: pid
+        });
+        if (error) return;
 
-    const { data, error } = await supabase.rpc("get_opposite_ids", {
-      p_pid: pid
-    });
+        numbersDiv.innerHTML = "";
+        selectedList.length = 0;
 
-    if (error) {
-      console.error("get_opposite_ids RPC error:", error.message);
-      return;
+        (data || []).forEach(row => {
+          const fullId = row.id;
+          const cell = document.createElement("div");
+
+          cell.classList.add("number-cell");
+          cell.dataset.pid = fullId;
+          cell.textContent = fullId;
+
+          cell.addEventListener("click", () => toggleSelection(fullId, cell));
+          numbersDiv.appendChild(cell);
+        });
+
+      } catch (err) {
+        console.error("loadNumbers error:", err);
+      }
     }
-
-    console.log("RPC returned:", data);
-
-    numbersDiv.innerHTML = "";
-    selectedList.length = 0;
-
-    (data || []).forEach(row => {
-const fullId = row.id;      // "M12", "F3"
-const cell = document.createElement("div");
-
-cell.classList.add("number-cell");
-cell.dataset.pid = fullId;
-
-// SHOW FULL ID (restore original format)
-cell.textContent = fullId;
-
-
-      cell.addEventListener("click", () => toggleSelection(fullId, cell));
-
-      numbersDiv.appendChild(cell);
-    });
-
-  } catch (err) {
-    console.error("loadNumbers error:", err);
-  }
-}
-
 
     function toggleSelection(id, cell) {
       const idx = selectedList.indexOf(id);
@@ -136,8 +124,6 @@ cell.textContent = fullId;
         cell.classList.add("selected");
       }
       updateSummary();
-      // We DON'T immediately update matches here, because matches are based on saved selections.
-      // They will reflect the last confirmed save.
     }
 
     function updateSummary() {
@@ -150,6 +136,9 @@ cell.textContent = fullId;
       confirmBtn.disabled = false;
     }
 
+    /* -----------------------------------------------------
+       LOAD EXISTING SELECTIONS
+    ----------------------------------------------------- */
     async function loadExistingSelections() {
       try {
         const { data, error } = await supabase
@@ -158,10 +147,7 @@ cell.textContent = fullId;
           .eq("participant_id", pid)
           .maybeSingle();
 
-        if (error) {
-          console.error("loadExistingSelections error:", error.message);
-          return;
-        }
+        if (error) return;
 
         if (data && data.selections) {
           existingSelections = data.selections;
@@ -169,140 +155,125 @@ cell.textContent = fullId;
             const cell = document.querySelector(`.number-cell[data-pid="${selId}"]`);
             if (cell) {
               cell.classList.add("selected");
-              if (!selectedList.includes(selId)) {
-                selectedList.push(selId);
-              }
+              if (!selectedList.includes(selId)) selectedList.push(selId);
             }
           });
           updateSummary();
-          refreshLiveMatchState();   // NEW: immediate UI update
+          refreshLiveMatchState();
         }
+
       } catch (err) {
         console.error("loadExistingSelections error:", err);
       }
     }
-// 🔵 LIVE REFRESH OF MATCHES + INTEREST BASED ON TEMPORARY SELECTIONS
-async function refreshLiveMatchState() {
-  try {
-    // Load others' saved selections from DB (safe + cheap)
-    const { data: others, error } = await supabase
-      .from("participants")
-      .select("participant_id, selections");
 
-    if (error || !others) return;
+    /* -----------------------------------------------------
+       LIVE PREVIEW OF MATCHES & INTERESTS
+    ----------------------------------------------------- */
+    async function refreshLiveMatchState() {
+      try {
+        const { data: others, error } = await supabase
+          .from("participants")
+          .select("participant_id, selections");
 
-    const mySel = selectedList;
-    const matches = [];
-    const interests = [];
+        if (error || !others) return;
 
-    others.forEach(row => {
-      if (row.participant_id === pid) return;
+        const mySel = selectedList;
+        const matches = [];
+        const interests = [];
 
-      const theirSel = row.selections || [];
+        others.forEach(row => {
+          if (row.participant_id === pid) return;
 
-      const I_like_them = mySel.includes(row.participant_id);
-      const they_like_me = theirSel.includes(pid);
+          const theirSel = row.selections || [];
 
-      if (I_like_them && they_like_me) {
-        // mutual match
-        matches.push(row.participant_id);
-      } else if (!I_like_them && they_like_me) {
-        // they like me, but not mutual
-        interests.push(row.participant_id);
+          const I_like_them = mySel.includes(row.participant_id);
+          const they_like_me = theirSel.includes(pid);
+
+          if (I_like_them && they_like_me) {
+            matches.push(row.participant_id);
+          } else if (!I_like_them && they_like_me) {
+            interests.push(row.participant_id);
+          }
+        });
+
+        matchesList.innerHTML = "";
+        if (matches.length) {
+          matchesBlock.style.display = "block";
+
+          matches.forEach(otherId => {
+            const row = document.createElement("div");
+            row.style.marginBottom = "6px";
+            row.innerHTML = `
+              • ${otherId} — <span>Number will be revealed when both parties agree.</span><br>
+              <label>
+                <input type="checkbox" disabled>
+                Share my number (?)
+              </label>
+            `;
+            matchesList.appendChild(row);
+          });
+
+        } else {
+          matchesBlock.style.display = "none";
+        }
+
+        interestList.innerHTML = "";
+        if (interests.length) {
+          interestBlock.style.display = "block";
+          interests.forEach(otherId => {
+            const div = document.createElement("div");
+            div.style.marginBottom = "4px";
+            div.textContent = otherId;
+            interestList.appendChild(div);
+          });
+        } else {
+          interestBlock.style.display = "none";
+        }
+
+      } catch (err) {
+        console.error("refreshLiveMatchState error:", err);
       }
-    });
-
-    // ─────────────────────────
-    // UPDATE MATCHES UI
-    // ─────────────────────────
-    matchesList.innerHTML = "";
-    if (matches.length > 0) {
-      matchesBlock.style.display = "block";
-
-      matches.forEach(otherId => {
-        const row = document.createElement("div");
-        row.style.marginBottom = "6px";
-        row.innerHTML = `
-          • ${otherId} — <span>Number will be revealed when both parties agree.</span><br>
-          <label>
-            <input type="checkbox" disabled>
-            Share my number (?)
-          </label>
-        `;
-        matchesList.appendChild(row);
-      });
-
-    } else {
-      matchesBlock.style.display = "none";
     }
 
-    // ─────────────────────────
-    // UPDATE INTEREST UI
-    // ─────────────────────────
-    interestList.innerHTML = "";
-    if (interests.length > 0) {
-      interestBlock.style.display = "block";
+    /* -----------------------------------------------------
+       SAVE SELECTIONS
+    ----------------------------------------------------- */
+    async function saveSelections() {
+      const newSelections = [...selectedList];
 
-      interests.forEach(otherId => {
-        const div = document.createElement("div");
-        div.style.marginBottom = "4px";
-        div.textContent = otherId;
-        interestList.appendChild(div);
-      });
+      try {
+        const { data: existing } = await supabase
+          .from("participants")
+          .select("id")
+          .eq("participant_id", pid)
+          .maybeSingle();
 
-    } else {
-      interestBlock.style.display = "none";
+        if (existing) {
+          await supabase
+            .from("participants")
+            .update({ selections: newSelections })
+            .eq("participant_id", pid);
+        } else {
+          await supabase
+            .from("participants")
+            .insert([{ participant_id: pid, name: pname, selections: newSelections }]);
+        }
+
+        alert(`✅ Thank you, ${pname}! Your selections are saved.`);
+
+        await loadMatchesAndInterests();
+
+        setTimeout(() => {
+          sessionStorage.clear();
+          window.location.replace("scanqr.html");
+        }, 800);
+
+      } catch (err) {
+        console.error("saveSelections error:", err);
+        alert("⚠️ Failed to save data.");
+      }
     }
-
-  } catch (err) {
-    console.error("refreshLiveMatchState error:", err);
-  }
-}
-
-async function saveSelections() {
-  const newSelections = [...selectedList];
-
-  try {
-    const { data: existing, error: exError } = await supabase
-      .from("participants")
-      .select("id")
-      .eq("participant_id", pid)
-      .maybeSingle();
-
-    if (exError) {
-      console.error("check existing error:", exError.message);
-    }
-
-    if (existing) {
-      const { error: updError } = await supabase
-        .from("participants")
-        .update({ selections: newSelections })
-        .eq("participant_id", pid);
-      if (updError) throw updError;
-    } else {
-      const { error: insError } = await supabase
-        .from("participants")
-        .insert([{ participant_id: pid, name: pname, selections: newSelections }]);
-      if (insError) throw insError;
-    }
-
-    alert(`✅ Thank you, ${pname}! Your selections are saved.`);
-
-    // ⭐ NEW — Immediately reload matches & interests
-    await loadMatchesAndInterests();
-
-    // ⭐ Delay redirect (same behaviour as before)
-    setTimeout(() => {
-      sessionStorage.clear();
-      window.location.replace("scanqr.html");
-    }, 800);
-
-  } catch (err) {
-    console.error("saveSelections error:", err);
-    alert("⚠️ Failed to save data.");
-  }
-}
-
 
     confirmBtn.addEventListener("click", saveSelections);
 
@@ -310,93 +281,81 @@ async function saveSelections() {
       selectedList = [];
       document.querySelectorAll(".number-cell.selected").forEach(c => c.classList.remove("selected"));
       updateSummary();
-      // Matches and interests will remain based on last saved state
     });
 
-    // --- NEW: Load matches + interests via secure RPC ---
+    /* -----------------------------------------------------
+       LOAD MATCHES + INTERESTS FROM SECURE RPC
+    ----------------------------------------------------- */
     async function loadMatchesAndInterests() {
       try {
-        // This RPC should be the participant-safe one you created:
-        // get_matches_and_interests_secure(p_pid text)
         const { data, error } = await supabase.rpc("get_matches_and_interests_secure", {
           p_pid: pid
         });
+
         if (error) {
           console.error("get_matches_and_interests_secure error:", error.message);
-          matchesBlock.style.display = "none";
-          interestBlock.style.display = "none";
           return;
         }
 
-const rows = data || [];
+        const rows = data || [];
 
-// --- Matches ---
-const matches = rows.filter(r => r.match_id);
-const matchIds = matches.map(m => m.match_id);
+        const matches   = rows.filter(r => r.match_id);
+        const matchIds  = matches.map(m => m.match_id);
+        const interests = rows
+          .filter(r => r.interest_id)
+          .filter(r => !matchIds.includes(r.interest_id));
 
-// --- Interests (remove those who are already matches) ---
-let interests = rows
-  .filter(r => r.interest_id)
-  .filter(r => !matchIds.includes(r.interest_id));
-
-        // Matches
+        /* ---------------------- MATCHES --------------------- */
         matchesList.innerHTML = "";
         if (matches.length) {
           matchesBlock.style.display = "block";
-matches.forEach(m => {
-  const otherId = m.match_id;
-  const revealNumber = m.reveal_number;   // NEW — may be null or actual phone
 
-  const row = document.createElement("div");
-  row.style.marginBottom = "10px";
+          matches.forEach(m => {
+            const otherId = m.match_id;
+            const reveal = m.reveal_number;
 
-  // If both agreed → show number
-  if (revealNumber) {
-    row.innerHTML = `
-      • ${otherId} — <strong>📞 ${revealNumber}</strong><br>
-      <label>
-        <input type="checkbox" data-other="${otherId}" checked>
-        Share my number (?)
-      </label>
-    `;
-  } else {
-    // Not both agreed → show message
-    row.innerHTML = `
-      • ${otherId} — <span>Number will be revealed when both parties agree.</span><br>
-      <label>
-        <input type="checkbox" data-other="${otherId}">
-        Share my number (?)
-      </label>
-    `;
-  }
+            const row = document.createElement("div");
+            row.style.marginBottom = "10px";
 
-  matchesList.appendChild(row);
+            if (reveal) {
+              row.innerHTML = `
+                • ${otherId} — <strong>📞 ${reveal}</strong><br>
+                <label>
+                  <input type="checkbox" data-other="${otherId}" checked>
+                  Share my number (?)
+                </label>
+              `;
+            } else {
+              row.innerHTML = `
+                • ${otherId} — <span>Number will be revealed when both parties agree.</span><br>
+                <label>
+                  <input type="checkbox" data-other="${otherId}">
+                  Share my number (?)
+                </label>
+              `;
+            }
 
-  const checkbox = row.querySelector("input[type='checkbox']");
+            matchesList.appendChild(row);
 
-  // If revealNumber exists → checkbox must start checked
-  if (revealNumber) checkbox.checked = true;
-
-  // Any checkbox change updates DB and reloads block
-  checkbox.addEventListener("change", async () => {
-    await updateSharePreference(otherId, checkbox.checked);
-    await loadMatchesAndInterests();   // Refresh after update
-  });
-});
+            const checkbox = row.querySelector("input[type='checkbox']");
+            checkbox.addEventListener("change", async () => {
+              await updateSharePreference(otherId, checkbox.checked);
+              await loadMatchesAndInterests();
+            });
+          });
 
         } else {
           matchesBlock.style.display = "none";
         }
 
-        // Incoming interest
+        /* ------------------ INTERESTS ---------------------- */
         interestList.innerHTML = "";
         if (interests.length) {
           interestBlock.style.display = "block";
           interests.forEach(i => {
-            const otherId = i.interest_id;
             const row = document.createElement("div");
             row.style.marginBottom = "4px";
-            row.textContent = otherId;
+            row.textContent = i.interest_id;
             interestList.appendChild(row);
           });
         } else {
@@ -405,43 +364,37 @@ matches.forEach(m => {
 
       } catch (err) {
         console.error("loadMatchesAndInterests error:", err);
-        matchesBlock.style.display = "none";
-        interestBlock.style.display = "none";
       }
     }
 
-    // --- NEW: Update number share preference ---
+    /* -----------------------------------------------------
+       UPDATE SHARE PREFERENCE
+    ----------------------------------------------------- */
     async function updateSharePreference(otherId, agree) {
       try {
-        const { error } = await supabase.rpc("update_number_share", {
+        await supabase.rpc("update_number_share", {
           p_pid: pid,
           p_other: otherId,
           p_agree: agree
         });
-        if (error) {
-          console.error("update_number_share error:", error.message);
-        }
-        // In future we can re-load to check if both agreed and then reveal numbers.
-        // For now, we only persist the choice.
       } catch (err) {
         console.error("updateSharePreference error:", err);
       }
     }
 
-    // Initial load
-(async function init() {
-  await loadNumbers();
-  await loadExistingSelections();
+    /* -----------------------------------------------------
+       INIT
+    ----------------------------------------------------- */
+    (async function init() {
+      await loadNumbers();
+      await loadExistingSelections();
 
-  // ⭐ ensure saved matches load AFTER selections are rendered
-  setTimeout(async () => {
-    await loadMatchesAndInterests();
+      setTimeout(async () => {
+        await loadMatchesAndInterests();
+        await refreshLiveMatchState();
+      }, 150);
+    })();
 
-    // ⭐ NEW: also refresh LIVE temporary match/interest state
-    await refreshLiveMatchState();
-
-  }, 150);
-})();
   </script>
 </body>
 </html>
