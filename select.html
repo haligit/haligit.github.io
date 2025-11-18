@@ -173,6 +173,23 @@ async function loadExistingSelections() {
 --------------------------------*/
 async function saveSelections() {
   const newSelections = [...selectedList];
+// 1. Load old selections from DB
+const oldSel = existingSelections || [];
+
+// 2. Identify which matches were removed
+const removed = oldSel.filter(x => !newSelections.includes(x));
+
+// 3. For each removed match → delete number_share row
+for (const otherId of removed) {
+  // Order alphabetically to match DB rule
+  const id1 = pid < otherId ? pid : otherId;
+  const id2 = pid < otherId ? otherId : pid;
+
+  await supabase
+    .from("number_share")
+    .delete()
+    .match({ p1_id: id1, p2_id: id2 });
+}
 
   const { data: existing } = await supabase
     .from("participants")
