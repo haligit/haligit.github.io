@@ -26,11 +26,13 @@
     <p><strong>Your Selections:</strong></p>
     <div id="priorityList">None</div>
 
+    <!-- Matches -->
     <div id="matchesBlock" style="margin-top:1em; text-align:left; display:none;">
       <p><strong>Matches:</strong></p>
       <div id="matchesList"></div>
     </div>
 
+    <!-- Incoming interest -->
     <div id="interestBlock" style="margin-top:1em; text-align:left; display:none;">
       <p><strong>People interested in you:</strong></p>
       <div id="interestList"></div>
@@ -40,280 +42,317 @@
     <button id="clearBtn">Clear All</button>
   </div>
 
-  <script>
-    const SUPABASE_URL = "https://cfuwtozobaypksesmxsi.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNmdXd0b3pvYmF5cGtzZXNteHNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDc1NjksImV4cCI6MjA3NjcyMzU2OX0.SbpESIaS7JZJmWHQ6ApifGDPYZZf3ekdQ0T_mgHCPSc";
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+<script>
+/* -----------------------------
+   Supabase Setup
+--------------------------------*/
+const SUPABASE_URL = "https://cfuwtozobaypksesmxsi.supabase.co";
+const SUPABASE_ANON_KEY =
+"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNmdXd0b3pvYmF5cGtzZXNteHNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDc1NjksImV4cCI6MjA3NjcyMzU2OX0.SbpESIaS7JZJmWHQ6ApifGDPYZZf3ekdQ0T_mgHCPSc";
 
-    const pid   = sessionStorage.getItem("pid");
-    const pw    = sessionStorage.getItem("pw");
-    const pname = sessionStorage.getItem("pname") || "Participant";
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    if (!pid || !pw) {
-      alert("Please log in first.");
-      window.location.replace("participant.html");
-    }
+const pid   = sessionStorage.getItem("pid");
+const pw    = sessionStorage.getItem("pw");
+const pname = sessionStorage.getItem("pname") || "Participant";
 
-    document.getElementById("welcome").textContent = `Welcome ${pid} - ${pname}`;
+if (!pid || !pw) {
+  alert("Please log in first.");
+  window.location.replace("participant.html");
+}
 
-    async function verifySession() {
-      const { data, error } = await supabase.rpc("verify_participant_login", {
-        p_participant_id: pid,
-        p_password: pw
-      });
-      if (error || !data || !data.length) {
-        alert("Session expired or invalid. Please log in again.");
-        sessionStorage.clear();
-        window.location.replace("participant.html");
-      }
-    }
-    verifySession();
+document.getElementById("welcome").textContent = `Welcome ${pid} - ${pname}`;
 
-    const numbersDiv      = document.getElementById("numbers");
-    const priorityListDiv = document.getElementById("priorityList");
-    const confirmBtn      = document.getElementById("confirmBtn");
-    const clearBtn        = document.getElementById("clearBtn");
-    const matchesBlock    = document.getElementById("matchesBlock");
-    const matchesList     = document.getElementById("matchesList");
-    const interestBlock   = document.getElementById("interestBlock");
-    const interestList    = document.getElementById("interestList");
+/* -----------------------------
+   Verify session still valid
+--------------------------------*/
+async function verifySession() {
+  const { data, error } = await supabase.rpc("verify_participant_login", {
+    p_participant_id: pid,
+    p_password: pw
+  });
+  if (error || !data || !data.length) {
+    alert("Session expired or invalid.");
+    sessionStorage.clear();
+    window.location.replace("participant.html");
+  }
+}
+verifySession();
 
-    let selectedList = [];
-    let existingSelections = [];
+/* -----------------------------
+   DOM refs
+--------------------------------*/
+const numbersDiv   = document.getElementById("numbers");
+const priorityList = document.getElementById("priorityList");
+const confirmBtn   = document.getElementById("confirmBtn");
+const clearBtn     = document.getElementById("clearBtn");
 
-    async function loadNumbers() {
-      try {
-        const { data, error } = await supabase.rpc("get_opposite_ids", { p_pid: pid });
+const matchesBlock = document.getElementById("matchesBlock");
+const matchesList  = document.getElementById("matchesList");
+const interestBlock= document.getElementById("interestBlock");
+const interestList = document.getElementById("interestList");
 
-        if (error) {
-          console.error("get_opposite_ids RPC error:", error.message);
-          return;
-        }
+let selectedList = [];
+let existingSelections = [];
 
-        numbersDiv.innerHTML = "";
-        selectedList.length = 0;
+/* -----------------------------
+   Load Numbers (based on gender)
+--------------------------------*/
+async function loadNumbers() {
+  const { data, error } = await supabase.rpc("get_opposite_ids", { p_pid: pid });
 
-        (data || []).forEach(row => {
-          const fullId = row.id;
-          const cell = document.createElement("div");
+  numbersDiv.innerHTML = "";
+  selectedList.length = 0;
 
-          cell.classList.add("number-cell");
-          cell.dataset.pid = fullId;
-          cell.textContent = fullId;
+  (data || []).forEach(row => {
+    const fullId = row.id;
+    const cell = document.createElement("div");
+    cell.classList.add("number-cell");
+    cell.dataset.pid = fullId;
+    cell.textContent = fullId;
 
-          cell.addEventListener("click", () => toggleSelection(fullId, cell));
+    cell.addEventListener("click", () => toggleSelection(fullId, cell));
 
-          numbersDiv.appendChild(cell);
-        });
+    numbersDiv.appendChild(cell);
+  });
+}
 
-      } catch (err) {
-        console.error("loadNumbers error:", err);
-      }
-    }
+/* -----------------------------
+   Selection Toggle
+--------------------------------*/
+function toggleSelection(id, cell) {
+  const i = selectedList.indexOf(id);
+  if (i >= 0) {
+    selectedList.splice(i, 1);
+    cell.classList.remove("selected");
+  } else {
+    selectedList.push(id);
+    cell.classList.add("selected");
+  }
+  updateSummary();
+}
 
-    function toggleSelection(id, cell) {
-      const idx = selectedList.indexOf(id);
-      if (idx >= 0) {
-        selectedList.splice(idx, 1);
-        cell.classList.remove("selected");
-      } else {
-        selectedList.push(id);
+/* -----------------------------
+   Update Summary
+--------------------------------*/
+function updateSummary() {
+  if (!selectedList.length) {
+    priorityList.textContent = "None";
+    confirmBtn.disabled = false;
+    return;
+  }
+  priorityList.textContent = "You selected: " + selectedList.join(", ");
+  confirmBtn.disabled = false;
+}
+
+/* -----------------------------
+   Load existing saved selections
+--------------------------------*/
+async function loadExistingSelections() {
+  const { data } = await supabase
+    .from("participants")
+    .select("selections")
+    .eq("participant_id", pid)
+    .maybeSingle();
+
+  if (data && data.selections) {
+    existingSelections = data.selections;
+    existingSelections.forEach(id => {
+      const cell = document.querySelector(`.number-cell[data-pid="${id}"]`);
+      if (cell) {
         cell.classList.add("selected");
+        selectedList.push(id);
       }
-      updateSummary();
-    }
-
-    function updateSummary() {
-      if (!selectedList.length) {
-        priorityListDiv.textContent = "None";
-        confirmBtn.disabled = false;
-        return;
-      }
-      priorityListDiv.textContent = "You selected: " + selectedList.join(", ");
-      confirmBtn.disabled = false;
-    }
-
-    async function loadExistingSelections() {
-      try {
-        const { data } = await supabase
-          .from("participants")
-          .select("selections")
-          .eq("participant_id", pid)
-          .maybeSingle();
-
-        if (data && data.selections) {
-          existingSelections = data.selections;
-
-          existingSelections.forEach(selId => {
-            const cell = document.querySelector(`.number-cell[data-pid="${selId}"]`);
-            if (cell) {
-              cell.classList.add("selected");
-              if (!selectedList.includes(selId)) {
-                selectedList.push(selId);
-              }
-            }
-          });
-
-          updateSummary();
-        }
-      } catch (err) {
-        console.error("loadExistingSelections error:", err);
-      }
-    }
-
-    async function saveSelections() {
-      const newSelections = [...selectedList];
-
-      try {
-        const { data: existing } = await supabase
-          .from("participants")
-          .select("id")
-          .eq("participant_id", pid)
-          .maybeSingle();
-
-        if (existing) {
-          await supabase
-            .from("participants")
-            .update({ selections: newSelections })
-            .eq("participant_id", pid);
-        } else {
-          await supabase
-            .from("participants")
-            .insert([{ participant_id: pid, name: pname, selections: newSelections }]);
-        }
-
-        alert(`✅ Thank you, ${pname}! Your selections are saved.`);
-
-        await loadMatchesAndInterests();
-
-        setTimeout(() => {
-          sessionStorage.clear();
-          window.location.replace("scanqr.html");
-        }, 800);
-
-      } catch (err) {
-        console.error("saveSelections error:", err);
-        alert("⚠️ Failed to save data.");
-      }
-    }
-
-    confirmBtn.addEventListener("click", saveSelections);
-
-    clearBtn.addEventListener("click", () => {
-      selectedList = [];
-      document.querySelectorAll(".number-cell.selected").forEach(c => c.classList.remove("selected"));
-      updateSummary();
     });
+    updateSummary();
+  }
+}
 
-    async function loadMatchesAndInterests() {
-      try {
-        const { data, error } = await supabase.rpc("get_matches_and_interests_secure", {
-          p_pid: pid
-        });
+/* -----------------------------
+   Save selections
+--------------------------------*/
+async function saveSelections() {
+  const newSelections = [...selectedList];
 
-        if (error) {
-          console.error("get_matches_and_interests_secure error:", error.message);
-          matchesBlock.style.display = "none";
-          interestBlock.style.display = "none";
-          return;
-        }
+  const { data: existing } = await supabase
+    .from("participants")
+    .select("id")
+    .eq("participant_id", pid)
+    .maybeSingle();
 
-        const rows = data || [];
+  if (existing) {
+    await supabase.from("participants")
+      .update({ selections: newSelections })
+      .eq("participant_id", pid);
+  } else {
+    await supabase.from("participants")
+      .insert([{ participant_id: pid, name: pname, selections: newSelections }]);
+  }
 
-        const matches = rows.filter(r => r.match_id);
-        const matchIds = matches.map(m => m.match_id);
+  alert(`✅ Thanks ${pname}! Your selections are saved.`);
 
-        let interests = rows
-          .filter(r => r.interest_id)
-          .filter(r => !matchIds.includes(r.interest_id));
+  // Reload matches instantly
+  await loadMatchesAndInterests();
 
-        // Matches
-        matchesList.innerHTML = "";
-        if (matches.length) {
-          matchesBlock.style.display = "block";
+  setTimeout(() => {
+    sessionStorage.clear();
+    window.location.replace("scanqr.html");
+  }, 600);
+}
 
-          matches.forEach(m => {
-            const otherId      = m.match_id;
-            const revealNumber = m.reveal_number;
-            const myAgree      = m.my_agree;   // NEW
+confirmBtn.addEventListener("click", saveSelections);
 
-            const row = document.createElement("div");
-            row.style.marginBottom = "10px";
+/* -----------------------------
+   Clear selection
+--------------------------------*/
+clearBtn.addEventListener("click", () => {
+  selectedList = [];
+  document.querySelectorAll(".number-cell.selected").forEach(c => c.classList.remove("selected"));
+  updateSummary();
+});
 
-            // Checkbox should be checked if:
-            // - I already agreed, OR
-            // - both agreed and number is revealed
-            const checkedAttr = (revealNumber || myAgree) ? "checked" : "";
+/* -----------------------------
+   Load Matches & Interests
+--------------------------------*/
+async function loadMatchesAndInterests() {
+  const { data, error } = await supabase.rpc("get_matches_and_interests_secure", {
+    p_pid: pid
+  });
 
-            if (revealNumber) {
-              row.innerHTML = `
-                • ${otherId} — <strong>📞 ${revealNumber}</strong><br>
-                <label>
-                  <input type="checkbox" data-other="${otherId}" ${checkedAttr}>
-                  Share my number (?)
-                </label>
-              `;
-            } else {
-              row.innerHTML = `
-                • ${otherId} — <span>Number will be revealed when both parties agree.</span><br>
-                <label>
-                  <input type="checkbox" data-other="${otherId}" ${checkedAttr}>
-                  Share my number (?)
-                </label>
-              `;
-            }
+  if (error) {
+    console.error(error);
+    return;
+  }
 
-            matchesList.appendChild(row);
+  const rows = data || [];
 
-            const checkbox = row.querySelector("input[type='checkbox']");
-            checkbox.addEventListener("change", async () => {
-              await updateSharePreference(otherId, checkbox.checked);
-              await loadMatchesAndInterests();
-            });
-          });
+  const matches = rows.filter(r => r.match_id);
+  const matchIds = matches.map(m => m.match_id);
 
-        } else {
-          matchesBlock.style.display = "none";
-        }
+  const interests = rows
+    .filter(r => r.interest_id)
+    .filter(r => !matchIds.includes(r.interest_id));
 
-        interestList.innerHTML = "";
-        if (interests.length) {
-          interestBlock.style.display = "block";
-          interests.forEach(i => {
-            const div = document.createElement("div");
-            div.style.marginBottom = "4px";
-            div.textContent = i.interest_id;
-            interestList.appendChild(div);
-          });
-        } else {
-          interestBlock.style.display = "none";
-        }
+  /* ---- Render Matches ---- */
+  matchesList.innerHTML = "";
+  if (matches.length) {
+    matchesBlock.style.display = "block";
+    matches.forEach(m => renderMatchRow(m.match_id, m.reveal_number));
+  } else {
+    matchesBlock.style.display = "none";
+  }
 
-      } catch (err) {
-        console.error("loadMatchesAndInterests error:", err);
-      }
-    }
+  /* ---- Render Interests ---- */
+  interestList.innerHTML = "";
+  if (interests.length) {
+    interestBlock.style.display = "block";
+    interests.forEach(i => {
+      const div = document.createElement("div");
+      div.textContent = i.interest_id;
+      div.style.marginBottom = "4px";
+      interestList.appendChild(div);
+    });
+  } else {
+    interestBlock.style.display = "none";
+  }
+}
 
-    async function updateSharePreference(otherId, agree) {
-      try {
-        await supabase.rpc("update_number_share", {
-          p_pid: pid,
-          p_other: otherId,
-          p_agree: agree
-        });
-      } catch (err) {
-        console.error("updateSharePreference error:", err);
-      }
-    }
+/* -----------------------------
+   Render a MATCH row
+--------------------------------*/
+function renderMatchRow(otherId, revealNumber) {
+  const row = document.createElement("div");
+  row.style.marginBottom = "12px";
 
-    (async function init() {
-      await loadNumbers();
-      await loadExistingSelections();
+  const isRevealed = !!revealNumber;
 
-      setTimeout(async () => {
-        await loadMatchesAndInterests();
-      }, 150);
-    })();
-  </script>
+  row.innerHTML = `
+    • ${otherId} — 
+      ${isRevealed ? `<strong>📞 ${revealNumber}</strong>` : `<span>Number will be revealed when both parties agree.</span>`}
+      <br>
+
+    <label>
+      <input type="checkbox" data-other="${otherId}">
+      Share my number (?)
+    </label>
+
+    <br>
+    <button class="revealBtn" data-other="${otherId}" style="margin-top:4px;">
+      ${isRevealed ? "Number Revealed" : "Tap to Reveal"}
+    </button>
+  `;
+
+  matchesList.appendChild(row);
+
+  // Checkbox behaviour
+  const checkbox = row.querySelector("input[type='checkbox']");
+  checkbox.checked = isRevealed;  
+  checkbox.addEventListener("change", async () => {
+    await updateSharePreference(otherId, checkbox.checked);
+  });
+
+  // Reveal button behaviour
+  const revealBtn = row.querySelector(".revealBtn");
+  revealBtn.addEventListener("click", () => {
+    attemptReveal(otherId, revealBtn, checkbox);
+  });
+}
+
+/* -----------------------------
+   Try to Reveal Number
+--------------------------------*/
+async function attemptReveal(otherId, btn, checkbox) {
+  btn.textContent = "Checking…";
+
+  const { data, error } = await supabase.rpc("get_matches_and_interests_secure", {
+    p_pid: pid
+  });
+
+  if (error || !data) {
+    btn.textContent = "Error, try again";
+    return;
+  }
+
+  const match = data.find(r => r.match_id === otherId);
+
+  if (!match) {
+    btn.textContent = "No longer a match";
+    return;
+  }
+
+  if (match.reveal_number) {
+    btn.innerHTML = `📞 ${match.reveal_number}`;
+    return;
+  }
+
+  btn.textContent = `Waiting for ${otherId}…`;
+  setTimeout(() => {
+    btn.textContent = "Tap to Reveal";
+  }, 1500);
+}
+
+/* -----------------------------
+   Update number share
+--------------------------------*/
+async function updateSharePreference(otherId, agree) {
+  await supabase.rpc("update_number_share", {
+    p_pid: pid,
+    p_other: otherId,
+    p_agree: agree
+  });
+}
+
+/* -----------------------------
+   INIT
+--------------------------------*/
+(async function init() {
+  await loadNumbers();
+  await loadExistingSelections();
+
+  setTimeout(async () => {
+    await loadMatchesAndInterests();
+  }, 150);
+})();
+</script>
 </body>
 </html>
