@@ -40,6 +40,7 @@
 
     <button id="confirmBtn" disabled>Confirm Selection</button>
     <button id="clearBtn">Clear All</button>
+    <button id="reloadBtn" class="secondary">Reload</button>
     <button id="logoutBtn" style="background:#d9534f; color:white; margin-top:1em;">Logout</button>
   </div>
 
@@ -226,6 +227,9 @@ document.getElementById("logoutBtn").addEventListener("click", () => {
   window.location.replace("participant.html");
 });
   
+document.getElementById("reloadBtn").addEventListener("click", () => {
+  window.location.reload();
+});  
 
 /* -----------------------------
    Clear selection
