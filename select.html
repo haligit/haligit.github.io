@@ -211,10 +211,11 @@ for (const otherId of removed) {
   // Reload matches instantly
   await loadMatchesAndInterests();
 
-  setTimeout(() => {
+//  setTimeout(() => {
     sessionStorage.clear();
-    window.location.replace("scanqr.html");
-  }, 600);
+    window.location.replace("participant.html");
+//    window.location.replace("scanqr.html");
+//  }, 600);
 }
 
 confirmBtn.addEventListener("click", saveSelections);
