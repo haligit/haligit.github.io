@@ -40,6 +40,7 @@
 
     <button id="confirmBtn" disabled>Confirm Selection</button>
     <button id="clearBtn">Clear All</button>
+    <button id="logoutBtn" style="background:#d9534f; color:white; margin-top:1em;">Logout</button>
   </div>
 
 <script>
@@ -212,13 +213,19 @@ for (const otherId of removed) {
   await loadMatchesAndInterests();
 
 //  setTimeout(() => {
-    sessionStorage.clear();
-    window.location.replace("participant.html");
+//    sessionStorage.clear();
+//    window.location.replace("participant.html");
 //    window.location.replace("scanqr.html");
 //  }, 600);
 }
 
 confirmBtn.addEventListener("click", saveSelections);
+  
+document.getElementById("logoutBtn").addEventListener("click", () => {
+  sessionStorage.clear();
+  window.location.replace("participant.html");
+});
+  
 
 /* -----------------------------
    Clear selection
