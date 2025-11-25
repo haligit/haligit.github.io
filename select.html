@@ -237,29 +237,36 @@ async function loadMatchesAndInterests() {
   });
 
   if (error) {
-    console.error(error);
+    console.error("get_matches_and_interests_secure error:", error.message);
     return;
   }
 
   const rows = data || [];
 
-  const matches = rows.filter(r => r.match_id);
-  const matchIds = matches.map(m => m.match_id);
+  const matches   = rows.filter(r => r.match_id);
+  const matchIds  = matches.map(m => m.match_id);
 
   const interests = rows
     .filter(r => r.interest_id)
     .filter(r => !matchIds.includes(r.interest_id));
 
-  /* ---- Render Matches ---- */
+  /* ------- MATCHES ------- */
   matchesList.innerHTML = "";
   if (matches.length) {
     matchesBlock.style.display = "block";
-    matches.forEach(m => renderMatchRow(m.match_id, m.reveal_number));
+    matches.forEach(m => {
+      renderMatchRow(
+        m.match_id,
+        m.my_agree,
+        m.other_agree,
+        m.reveal_number
+      );
+    });
   } else {
     matchesBlock.style.display = "none";
   }
 
-  /* ---- Render Interests ---- */
+  /* ------- INTERESTS ------- */
   interestList.innerHTML = "";
   if (interests.length) {
     interestBlock.style.display = "block";
@@ -277,15 +284,18 @@ async function loadMatchesAndInterests() {
 /* -----------------------------
    Render a MATCH row
 --------------------------------*/
-function renderMatchRow(otherId, revealNumber) {
+function renderMatchRow(otherId, myAgree, otherAgree, revealNumber) {
   const row = document.createElement("div");
   row.style.marginBottom = "12px";
 
-  const isRevealed = !!revealNumber;
+  const bothAgree = myAgree && otherAgree;
 
   row.innerHTML = `
-    • ${otherId} — 
-      ${isRevealed ? `<strong>📞 ${revealNumber}</strong>` : `<span>Number will be revealed when both parties agree.</span>`}
+    • ${otherId} —
+      ${bothAgree && revealNumber
+        ? `<strong>📞 ${revealNumber}</strong>`
+        : `<span>Number will be revealed when both parties agree.</span>`
+      }
       <br>
 
     <label>
@@ -295,25 +305,28 @@ function renderMatchRow(otherId, revealNumber) {
 
     <br>
     <button class="revealBtn" data-other="${otherId}" style="margin-top:4px;">
-      ${isRevealed ? "Number Revealed" : "Tap to Reveal"}
+      ${bothAgree && revealNumber ? "Number Revealed" : "Tap to Reveal"}
     </button>
   `;
 
   matchesList.appendChild(row);
 
-  // Checkbox behaviour
+  /* ----- Checkbox: reflect my saved state ----- */
   const checkbox = row.querySelector("input[type='checkbox']");
-  checkbox.checked = isRevealed;  
+  checkbox.checked = myAgree;
+
   checkbox.addEventListener("change", async () => {
     await updateSharePreference(otherId, checkbox.checked);
+    await loadMatchesAndInterests();  // reload UI
   });
 
-  // Reveal button behaviour
+  /* ----- Reveal button ----- */
   const revealBtn = row.querySelector(".revealBtn");
   revealBtn.addEventListener("click", () => {
     attemptReveal(otherId, revealBtn, checkbox);
   });
 }
+
 
 /* -----------------------------
    Try to Reveal Number
